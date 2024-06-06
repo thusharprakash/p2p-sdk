@@ -1,220 +1,220 @@
-# go-libp2p-pubsub chat example
+Sure, here's a comprehensive README for the `p2p` package:
 
-This example project builds a chat room application using go-libp2p-pubsub. The app runs in the terminal,
-and uses a text UI to show messages from other peers:
+---
 
-![An animation showing three terminal windows, each running the example application.](./chat-example.gif)
+# p2p Package
 
-The goal of this example is to demonstrate the basic usage of the `PubSub` API, without getting into
-the details of configuration.
+The `p2p` package provides an easy-to-use library for building peer-to-peer (P2P) applications using libp2p. This package encapsulates the core functionalities needed for creating a P2P network, setting up pubsub messaging, and handling mDNS peer discovery.
 
-## Running
+## Features
 
-Clone this repo, then `cd` into the `examples/pubsub/chat` directory:
+- Peer-to-peer communication using libp2p
+- Pubsub messaging with GossipSub
+- Local peer discovery using mDNS
+- Easy-to-use API for joining rooms and publishing messages
 
-```shell
-git clone https://github.com/libp2p/go-libp2p
-cd go-libp2p/examples/pubsub/chat
-```
+## Installation
 
-Now you can either run with `go run`, or build and run the binary:
-
-```shell
-go run .
-
-# or, build and run separately
-go build .
-./chat
-```
-
-To set a nickname, use the `-nick` flag:
-
-```shell
-go run . -nick=zoidberg
-```
-
-You can join a specific chat room with the `-room` flag:
-
-```shell
-go run . -room=planet-express
-```
-
-It's usually more fun to chat with others, so open a new terminal and run the app again.
-If you set a custom chat room name with the `-room` flag, make sure you use the same one
-for both apps. Once the new instance starts, the two chat apps should discover each other 
-automatically using mDNS, and typing a message into one app will send it to any others that are open.
-
-To quit, hit `Ctrl-C`, or type `/quit` into the input field.
-
-## Code Overview
-
-In [`main.go`](./main.go), we create a new libp2p `Host` and then create a new `PubSub` service
-using the GossipSub router:
+To use the `p2p` package in your project, you need to import it and ensure you have the necessary dependencies. Add the following to your `go.mod` file:
 
 ```go
+module p2p-sdk
+
+go 1.16
+
+require (
+    github.com/libp2p/go-libp2p v0.19.1
+    github.com/libp2p/go-libp2p-core v0.9.0
+    github.com/libp2p/go-libp2p-pubsub v0.4.1
+    github.com/libp2p/go-libp2p-discovery v0.5.1
+)
+```
+
+Then run:
+```sh
+go mod tidy
+```
+
+## Usage
+
+### Importing the Package
+
+First, import the `p2p` package in your application:
+
+```go
+import "p2p-sdk/p2p"
+```
+
+### Initializing the P2P Library
+
+Initialize the P2P library and join a room:
+
+```go
+ctx := context.Background()
+
+// Initialize the P2P library
+p2pInstance, err := p2p.NewP2P(ctx)
+if err != nil {
+    panic(err)
+}
+
+// Join an event room
+nick := "your-nickname"
+roomName := "example-room"
+
+room, err := p2pInstance.JoinRoom(ctx, roomName, nick)
+if err != nil {
+    panic(err)
+}
+```
+
+### Publishing Messages
+
+Publish a message to the room:
+
+```go
+if err := room.Publish("Hello, world!"); err != nil {
+    fmt.Printf("Error publishing message: %s\n", err)
+}
+```
+
+### Receiving Messages
+
+Listen for incoming messages in a separate goroutine:
+
+```go
+go func() {
+    for msg := range room.Messages {
+        fmt.Printf("[%s] %s: %s\n", roomName, msg.SenderNick, msg.Message)
+    }
+}()
+```
+
+### Complete Example
+
+Here's a complete example of using the `p2p` package in a chat application:
+
+```go
+package main
+
+import (
+    "bufio"
+    "context"
+    "flag"
+    "fmt"
+    "os"
+    "strings"
+
+    "p2p-sdk/p2p"
+)
+
 func main() {
-	// (omitted) parse flags, etc...
+    nickFlag := flag.String("nick", "", "nickname to use in chat. will be generated if empty")
+    roomFlag := flag.String("room", "example-room", "name of chat room to join")
+    flag.Parse()
 
-	// create a new libp2p Host that listens on a random TCP port
-	h, err := libp2p.New(libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"))
-	if err != nil {
-		panic(err)
-	}
+    ctx := context.Background()
 
-	// create a new PubSub service using the GossipSub router
-	ps, err := pubsub.NewGossipSub(ctx, h)
-	if err != nil {
-		panic(err)
-	}
+    p2pInstance, err := p2p.NewP2P(ctx)
+    if err != nil {
+        panic(err)
+    }
 
-   // (omitted) setup mDNS discovery...
-   
-}
-``` 
+    nick := *nickFlag
+    if len(nick) == 0 {
+        nick = p2p.DefaultNick(p2pInstance.Host.ID())
+    }
 
-We configure the host to use local mDNS discovery, so that we can find other peers to chat with
-on the local network. We also parse a few command line flags, so we can set a friendly nickname,
-or choose a chat room by name.
+    roomName := *roomFlag
 
-Once we have a `Host` with an attached `PubSub` service, we join a `ChatRoom`:
+    room, err := p2pInstance.JoinRoom(ctx, roomName, nick)
+    if err != nil {
+        panic(err)
+    }
 
-```go
-    // still in the main func
-    cr, err := JoinChatRoom(ctx, ps, h.ID(), nick, room)
-  	if err != nil {
-  		panic(err)
-  	}
-```
- 
-`ChatRoom` is a custom struct defined in [`chatroom.go`](./chatroom.go):
+    go func() {
+        for msg := range room.Messages {
+            fmt.Printf("[%s] %s: %s\n", roomName, msg.SenderNick, msg.Message)
+        }
+    }()
 
-```go
-// ChatRoom represents a subscription to a single PubSub topic. Messages
-// can be published to the topic with ChatRoom.Publish, and received
-// messages are pushed to the Messages channel.
-type ChatRoom struct {
-	// Messages is a channel of messages received from other peers in the chat room
-	Messages chan *ChatMessage
+    scanner := bufio.NewScanner(os.Stdin)
+    for scanner.Scan() {
+        text := scanner.Text()
+        if strings.TrimSpace(text) == "" {
+            continue
+        }
+        if text == "/quit" {
+            break
+        }
+        if err := room.Publish(text); err != nil {
+            fmt.Printf("Error publishing message: %s\n", err)
+        }
+    }
 
-	ctx   context.Context
-	ps    *pubsub.PubSub
-	topic *pubsub.Topic
-	sub   *pubsub.Subscription
+    if err := scanner.Err(); err != nil {
+        fmt.Printf("Error reading from stdin: %s\n", err)
+    }
 
-	roomName string
-	self     peer.ID
-	nick     string
+    select {}
 }
 ```
 
-A `ChatRoom` subscribes to a PubSub `Topic`, and reads messages from the `Subscription`. We're sending our messages
-wrapped inside of a `ChatMessage` struct:
+## Directory Structure
 
-```go
-type ChatMessage struct {
-	Message    string
-	SenderID   string
-	SenderNick string
-}
-```
+The package is organized into the following files:
 
-This lets us attach friendly nicknames to the messages for display. A real app might want to make sure that
-nicks are unique, but we just let anyone claim whatever nick they want and send it along with their messages.
+- `p2p.go`: Main initialization and room management.
+- `pubsub.go`: Pubsub messaging functions.
+- `mdns.go`: mDNS peer discovery functions.
+- `utils.go`: Utility functions.
 
-The `ChatMessage`s are encoded to JSON and published to the PubSub topic, in the `Data` field of a `pubsub.Message`.
-We could have used any encoding, as long as everyone in the topic agrees on the format, but JSON is simple and good 
-enough for our purposes. 
+## Functions
 
-To send messages, we have a `Publish` method, which wraps messages in `ChatMessage` structs, encodes them, and publishes 
-to the `pubsub.Topic`:
+### NewP2P
 
-```go
-func (cr *ChatRoom) Publish(message string) error {
-	m := ChatMessage{
-		Message:    message,
-		SenderID:   cr.self.String(),
-		SenderNick: cr.nick,
-	}
-	msgBytes, err := json.Marshal(m)
-	if err != nil {
-		return err
-	}
-	return cr.topic.Publish(cr.ctx, msgBytes)
-}
-```
+`NewP2P(ctx context.Context) (*P2P, error)`
 
-In the background, the `ChatRoom` runs a `readLoop` goroutine, which reads messages from the `pubsub.Subscription`,
-decodes the `ChatMessage` JSON, and sends the `ChatMessage`s on a channel:
+Initializes a new P2P instance with a libp2p host and pubsub system.
 
-```go
-func (cr *ChatRoom) readLoop() {
-	for {
-		msg, err := cr.sub.Next(cr.ctx)
-		if err != nil {
-			close(cr.Messages)
-			return
-		}
-		// only forward messages delivered by others
-		if msg.ReceivedFrom == cr.self {
-			continue
-		}
-		cm := new(ChatMessage)
-		err = json.Unmarshal(msg.Data, cm)
-		if err != nil {
-			continue
-		}
-		// send valid messages onto the Messages channel
-		cr.Messages <- cm
-	}
-}
-```
+### JoinRoom
 
-There's also a `ListPeers` method, which just wraps the method of the same name in the `PubSub` service:
+`(p2p *P2P) JoinRoom(ctx context.Context, roomName, nick string) (*EventRoom, error)`
 
-```go
-func (cr *ChatRoom) ListPeers() []peer.ID {
-	return cr.ps.ListPeers(topicName(cr.roomName))
-}
-```
+Joins a pubsub room with the given name and nickname.
 
-That's pretty much it for the `ChatRoom`! 
+### Publish
 
-Back in `main.go`, once we've created our `ChatRoom`, we pass it
-to `NewChatUI`, which constructs a three panel text UI for entering and viewing chat messages, because UIs
-are fun.
+`(room *EventRoom) Publish(message string) error`
 
-The `ChatUI` is defined in [`ui.go`](./ui.go), and the interesting bit is in the `handleEvents` event loop
-method:
+Publishes a message to the pubsub topic.
 
-```go
-func (ui *ChatUI) handleEvents() {
-	peerRefreshTicker := time.NewTicker(time.Second)
-	defer peerRefreshTicker.Stop()
+### ListPeers
 
-	for {
-		select {
-		case input := <-ui.inputCh:
-			// when the user types in a line, publish it to the chat room and print to the message window
-			err := ui.cr.Publish(input)
-			if err != nil {
-				printErr("publish error: %s", err)
-			}
-			ui.displaySelfMessage(input)
+`(room *EventRoom) ListPeers() []peer.ID`
 
-		case m := <-ui.cr.Messages:
-			// when we receive a message from the chat room, print it to the message window
-			ui.displayChatMessage(m)
+Lists peers currently in the pubsub topic.
 
-		case <-peerRefreshTicker.C:
-			// refresh the list of peers in the chat room periodically
-			ui.refreshPeers()
+### SetupDiscovery
 
-		case <-ui.cr.ctx.Done():
-			return
+`SetupDiscovery(h host.Host) error`
 
-		case <-ui.doneCh:
-			return
-		}
-	}
-}
-```
+Sets up mDNS peer discovery for the given host.
+
+### Utility Functions
+
+- `PrintErr(m string, args ...interface{})`
+- `DefaultNick(p peer.ID) string`
+- `ShortID(p peer.ID) string`
+
+## License
+
+This package is open-source and available under the MIT License.
+
+## Contributing
+
+Contributions are welcome! Please open an issue or submit a pull request.
+
+---
+
+This README provides a comprehensive overview of the `p2p` package, its installation, usage, and directory structure. Feel free to adjust it based on your specific needs and project details.
