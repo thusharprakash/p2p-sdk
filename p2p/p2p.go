@@ -6,7 +6,6 @@ import (
 	"github.com/libp2p/go-libp2p"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/host"
-	"github.com/libp2p/go-libp2p/core/peer"
 )
 
 const (
@@ -15,28 +14,32 @@ const (
 )
 
 type P2P struct {
-	Host   host.Host
-	PubSub *pubsub.PubSub
-	Rooms  map[string]*EventRoom
+	Host         host.Host
+	PubSub       *pubsub.PubSub
+	Rooms        map[string]*EventRoom
+	EventManager *EventManager
 }
 
 type EventRoom struct {
-	Messages chan *EventMessage
+	Messages    chan *EventMessage
+	VectorClock VectorClock
 
-	ctx   context.Context
-	ps    *pubsub.PubSub
-	topic *pubsub.Topic
-	sub   *pubsub.Subscription
-
+	ctx      context.Context
+	ps       *pubsub.PubSub
+	topic    *pubsub.Topic
+	sub      *pubsub.Subscription
 	roomName string
-	self     peer.ID
+	self     host.Host
 	nick     string
 }
 
 type EventMessage struct {
-	Message    string
-	SenderID   string
-	SenderNick string
+	EventType   string
+	Data        string
+	SenderID    string
+	SenderNick  string
+	Timestamp   int64
+	VectorClock VectorClock
 }
 
 func NewP2P(ctx context.Context) (*P2P, error) {
@@ -54,10 +57,13 @@ func NewP2P(ctx context.Context) (*P2P, error) {
 		return nil, err
 	}
 
+	em := NewEventManager()
+
 	p2p := &P2P{
-		Host:   h,
-		PubSub: ps,
-		Rooms:  make(map[string]*EventRoom),
+		Host:         h,
+		PubSub:       ps,
+		Rooms:        make(map[string]*EventRoom),
+		EventManager: em,
 	}
 	return p2p, nil
 }
@@ -74,18 +80,19 @@ func (p2p *P2P) JoinRoom(ctx context.Context, roomName, nick string) (*EventRoom
 	}
 
 	room := &EventRoom{
-		ctx:      ctx,
-		ps:       p2p.PubSub,
-		topic:    topic,
-		sub:      sub,
-		self:     p2p.Host.ID(),
-		nick:     nick,
-		roomName: roomName,
-		Messages: make(chan *EventMessage, EventRoomBufSize),
+		ctx:         ctx,
+		ps:          p2p.PubSub,
+		topic:       topic,
+		sub:         sub,
+		self:        p2p.Host,
+		nick:        nick,
+		roomName:    roomName,
+		Messages:    make(chan *EventMessage, EventRoomBufSize),
+		VectorClock: make(VectorClock),
 	}
 
 	p2p.Rooms[roomName] = room
 
-	go room.readLoop()
+	go room.readLoop(p2p.EventManager)
 	return room, nil
 }

@@ -2,15 +2,20 @@ package p2p
 
 import (
 	"encoding/json"
+	"time"
 
 	"github.com/libp2p/go-libp2p/core/peer"
 )
 
-func (room *EventRoom) Publish(message string) error {
+func (room *EventRoom) Publish(eventType, data string) error {
+	room.VectorClock.Increment(room.self.ID().String())
 	m := EventMessage{
-		Message:    message,
-		SenderID:   room.self.String(),
-		SenderNick: room.nick,
+		EventType:   eventType,
+		Data:        data,
+		SenderID:    room.self.ID().String(),
+		SenderNick:  room.nick,
+		Timestamp:   time.Now().Unix(),
+		VectorClock: room.VectorClock.Copy(),
 	}
 	msgBytes, err := json.Marshal(m)
 	if err != nil {
@@ -23,22 +28,24 @@ func (room *EventRoom) ListPeers() []peer.ID {
 	return room.ps.ListPeers(topicName(room.roomName))
 }
 
-func (room *EventRoom) readLoop() {
+func (room *EventRoom) readLoop(em *EventManager) {
 	for {
 		msg, err := room.sub.Next(room.ctx)
 		if err != nil {
 			close(room.Messages)
 			return
 		}
-		if msg.ReceivedFrom == room.self {
+		if msg.ReceivedFrom == room.self.ID() {
 			continue
 		}
-		em := new(EventMessage)
-		err = json.Unmarshal(msg.Data, em)
+		evt := new(EventMessage)
+		err = json.Unmarshal(msg.Data, evt)
 		if err != nil {
 			continue
 		}
-		room.Messages <- em
+		room.VectorClock.Update(evt.VectorClock)
+		room.Messages <- evt
+		em.DispatchWithOrdering(*evt)
 	}
 }
 
