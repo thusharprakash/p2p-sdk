@@ -2,6 +2,7 @@ package p2p
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/libp2p/go-libp2p"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
@@ -13,7 +14,7 @@ const (
 	EventRoomBufSize    = 128
 )
 
-type P2P struct {
+type PeerToPeer struct {
 	Host         host.Host
 	PubSub       *pubsub.PubSub
 	Rooms        map[string]*EventRoom
@@ -42,24 +43,27 @@ type EventMessage struct {
 	VectorClock VectorClock
 }
 
-func NewP2P(ctx context.Context) (*P2P, error) {
+func NewP2P(ctx context.Context) (*PeerToPeer, error) {
+	fmt.Println("Initializing P2P")
 	h, err := libp2p.New(libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"))
 	if err != nil {
 		return nil, err
 	}
 
+	fmt.Println("Initializing PubSub")
 	ps, err := pubsub.NewGossipSub(ctx, h)
 	if err != nil {
 		return nil, err
 	}
 
+	fmt.Println("Setting up discovery")
 	if err := SetupDiscovery(h); err != nil {
 		return nil, err
 	}
 
 	em := NewEventManager()
 
-	p2p := &P2P{
+	p2p := &PeerToPeer{
 		Host:         h,
 		PubSub:       ps,
 		Rooms:        make(map[string]*EventRoom),
@@ -68,7 +72,7 @@ func NewP2P(ctx context.Context) (*P2P, error) {
 	return p2p, nil
 }
 
-func (p2p *P2P) JoinRoom(ctx context.Context, roomName, nick string) (*EventRoom, error) {
+func (p2p *PeerToPeer) JoinRoom(ctx context.Context, roomName, nick string) (*EventRoom, error) {
 	topic, err := p2p.PubSub.Join(topicName(roomName))
 	if err != nil {
 		return nil, err
