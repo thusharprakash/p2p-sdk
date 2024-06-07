@@ -2,7 +2,9 @@ package p2p
 
 import (
 	"fmt"
+	"math/rand"
 	"os"
+	"time"
 
 	"github.com/libp2p/go-libp2p/core/peer"
 )
@@ -18,4 +20,17 @@ func DefaultNick(p peer.ID) string {
 func shortID(p peer.ID) string {
 	pretty := p.String()
 	return pretty[len(pretty)-8:]
+}
+
+const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+
+var seededRand *rand.Rand = rand.New(rand.NewSource(time.Now().UnixNano()))
+
+
+func GenerateRandomString(length int) string {
+    b := make([]byte, length)
+    for i := range b {
+        b[i] = charset[seededRand.Intn(len(charset))]
+    }
+    return string(b)
 }
