@@ -33,7 +33,7 @@ func main() {
 	}
 
 	// Set the storage for P2P instance
-	p2pInstance.SetStorage(storage)
+	p2pInstance.SetEventStorage(storage)
 
 	nick := *nickFlag
 	if len(nick) == 0 {

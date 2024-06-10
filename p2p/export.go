@@ -19,6 +19,12 @@ func StartP2PChat(config *NodeConfig){
 		config = NewNodeConfig()
 	}
 
+	// Initialize the storage
+	storage, err := NewStorage(config.storagePath)
+	if err != nil {
+		panic(err)
+	}
+
 	// Set up netdriver.
 	if config.netDriver != nil {
 		logger, _ := zap.NewDevelopment()
@@ -46,6 +52,7 @@ func StartP2PChat(config *NodeConfig){
 		panic(err)
 	}
 
+	p2pInstance.SetEventStorage(storage)
 	fmt.Printf("P2P instance created with ID %s\n", p2pInstance.Host.ID())
 	// use the nickname from the cli flag, or a default if blank
 	nick := nickFlag
@@ -82,7 +89,7 @@ func StartP2PChat(config *NodeConfig){
         select {
         case <-ticker.C:
             currentTime := time.Now().Format("2006-01-02 15:04:05")
-			if err := room.Publish("message",currentTime); err != nil {
+			if err := room.Publish(EventTypeMessage,currentTime); err != nil {
 				fmt.Printf("Error publishing message: %s\n", err)
 			}
         }

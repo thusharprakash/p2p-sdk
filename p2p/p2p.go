@@ -74,7 +74,7 @@ func NewP2P(ctx context.Context) (*PeerToPeer, error) {
 	return p2p, nil
 }
 
-func (p2p *PeerToPeer) SetStorage(storage *Storage) {
+func (p2p *PeerToPeer) SetEventStorage(storage *Storage) {
 	p2p.Storage = storage
 
 	// Load events from storage and dispatch them
