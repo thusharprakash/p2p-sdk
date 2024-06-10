@@ -95,4 +95,7 @@ require (
 	lukechampine.com/blake3 v1.2.1 // indirect
 )
 
-replace github.com/multiformats/go-multiaddr => github.com/athulantonynp/go-multiaddr v0.0.0-20240606071945-a474a56a4b42 // tmp, required for Android SDK30
+replace (
+	github.com/elastic/gosigar => github.com/birros/gosigar v0.14.2-fix-ios	
+	github.com/multiformats/go-multiaddr => github.com/athulantonynp/go-multiaddr v0.0.0-20240606071945-a474a56a4b42 // tmp, required for Android SDK30
+)
