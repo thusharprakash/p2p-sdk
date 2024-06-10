@@ -2,6 +2,7 @@ package p2p
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -46,6 +47,13 @@ func (room *EventRoom) readLoop(em *EventManager) {
 		room.VectorClock.Update(evt.VectorClock)
 		room.Messages <- evt
 		em.DispatchWithOrdering(*evt)
+
+		// Save event to storage
+		if room.Storage != nil {
+			if err := room.Storage.SaveEvent(*evt); err != nil {
+				fmt.Printf("Error saving event: %s\n", err)
+			}
+		}
 	}
 }
 

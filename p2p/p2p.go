@@ -19,11 +19,13 @@ type PeerToPeer struct {
 	PubSub       *pubsub.PubSub
 	Rooms        map[string]*EventRoom
 	EventManager *EventManager
+	Storage      *Storage
 }
 
 type EventRoom struct {
 	Messages    chan *EventMessage
 	VectorClock VectorClock
+	Storage     *Storage
 
 	ctx      context.Context
 	ps       *pubsub.PubSub
@@ -72,6 +74,21 @@ func NewP2P(ctx context.Context) (*PeerToPeer, error) {
 	return p2p, nil
 }
 
+func (p2p *PeerToPeer) SetStorage(storage *Storage) {
+	p2p.Storage = storage
+
+	// Load events from storage and dispatch them
+	events, err := storage.GetEvents()
+	if err != nil {
+		fmt.Printf("Error retrieving events from storage: %s\n", err)
+		return
+	}
+
+	for _, event := range events {
+		p2p.EventManager.DispatchWithOrdering(event)
+	}
+}
+
 func (p2p *PeerToPeer) JoinRoom(ctx context.Context, roomName, nick string) (*EventRoom, error) {
 	topic, err := p2p.PubSub.Join(topicName(roomName))
 	if err != nil {
@@ -93,6 +110,7 @@ func (p2p *PeerToPeer) JoinRoom(ctx context.Context, roomName, nick string) (*Ev
 		roomName:    roomName,
 		Messages:    make(chan *EventMessage, EventRoomBufSize),
 		VectorClock: make(VectorClock),
+		Storage:     p2p.Storage,
 	}
 
 	p2p.Rooms[roomName] = room
