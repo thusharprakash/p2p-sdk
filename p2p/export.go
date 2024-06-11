@@ -3,16 +3,21 @@ package p2p
 import (
 	"context"
 	"fmt"
-	"time"
 
 	internal "p2p-sdk/p2p/internals"
 
 	manet "github.com/multiformats/go-multiaddr/net"
 	"go.uber.org/zap"
 )
+var globalRoom *EventRoom
 
-func StartP2PChat(config *NodeConfig){
-	nickFlag := GenerateRandomString(6)
+type PeerMessageData struct{
+	message string
+	sender string
+}
+
+func StartP2PChat(config *NodeConfig)(string){
+	nickFlag := GenerateRandomString(10)
 	roomFlag := "test-chat-room-dabzee"
 
 	if config == nil {
@@ -66,6 +71,8 @@ func StartP2PChat(config *NodeConfig){
 	// Join an event room
 	room, err := p2pInstance.JoinRoom(ctx, roomName, nick)
 
+	globalRoom = room
+
 	fmt.Printf("Joined room %s as %s\n", roomName, nick)
 	if err != nil {
 		panic(err)
@@ -75,23 +82,21 @@ func StartP2PChat(config *NodeConfig){
 		config.mdnsLockerDriver.Unlock()
 	}
 
+
+	fmt.Println("P2P chat started")
+	return p2pInstance.id
+}
+
+func StartSubscription(callback PeerMessageCallback){
 	// Listen for incoming messages
 	go func() {
-		for msg := range room.Messages {
-			fmt.Printf("[%s] %s: %s\n", roomName, msg.SenderNick, msg.Data)
+		for msg := range globalRoom.Messages {
+			fmt.Printf("[%s] %s: %s\n",  msg.SenderNick, msg.Data)
+			callback.OnMessage(msg.Data)
 		}
 	}()
+}
 
-	ticker := time.NewTicker(5 * time.Second)
-    defer ticker.Stop()
-
-	for {
-        select {
-        case <-ticker.C:
-            currentTime := time.Now().Format("2006-01-02 15:04:05")
-			if err := room.Publish(EventTypeMessage,currentTime); err != nil {
-				fmt.Printf("Error publishing message: %s\n", err)
-			}
-        }
-    }
+func PublishMessage(message string) error {
+    return globalRoom.Publish(EventTypeMessage, message)
 }

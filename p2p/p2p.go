@@ -21,6 +21,7 @@ type PeerToPeer struct {
 	Rooms        map[string]*EventRoom
 	EventManager *EventManager
 	Storage      *Storage
+	id 		 	 string
 }
 
 type EventMessage struct {
@@ -59,6 +60,7 @@ func NewP2P(ctx context.Context) (*PeerToPeer, error) {
 		PubSub:       ps,
 		Rooms:        make(map[string]*EventRoom),
 		EventManager: em,
+		id:		   h.ID().ShortString(),
 	}
 	return p2p, nil
 }
