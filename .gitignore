@@ -8,3 +8,5 @@ out/
 #
 .DS_Store
 MobileApp/.yarnrc.yml
+MobileApp/ios/MobileApp/Frameworks/
+MobileApp/ios/MobileApp.xcworkspace/xcshareddata/
