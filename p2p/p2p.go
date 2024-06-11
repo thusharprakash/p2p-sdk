@@ -7,6 +7,7 @@ import (
 	"github.com/libp2p/go-libp2p"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/host"
+	"github.com/libp2p/go-libp2p/p2p/security/noise"
 )
 
 const (
@@ -22,20 +23,6 @@ type PeerToPeer struct {
 	Storage      *Storage
 }
 
-type EventRoom struct {
-	Messages    chan *EventMessage
-	VectorClock VectorClock
-	Storage     *Storage
-
-	ctx      context.Context
-	ps       *pubsub.PubSub
-	topic    *pubsub.Topic
-	sub      *pubsub.Subscription
-	roomName string
-	self     host.Host
-	nick     string
-}
-
 type EventMessage struct {
 	EventType   string
 	Data        string
@@ -47,7 +34,9 @@ type EventMessage struct {
 
 func NewP2P(ctx context.Context) (*PeerToPeer, error) {
 	fmt.Println("Initializing P2P")
-	h, err := libp2p.New(libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"))
+	h, err := libp2p.New(
+		libp2p.Security(noise.ID, noise.New),
+		libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"))
 	if err != nil {
 		return nil, err
 	}

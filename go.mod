@@ -6,8 +6,8 @@ require (
 	github.com/libp2p/go-libp2p v0.32.0
 	github.com/libp2p/go-libp2p-pubsub v0.10.0
 	github.com/libp2p/zeroconf/v2 v2.2.0
-	github.com/mattn/go-sqlite3 v1.14.22
 	github.com/multiformats/go-multiaddr v0.12.0
+	go.etcd.io/bbolt v1.3.10
 	go.uber.org/zap v1.26.0
 )
 
@@ -85,7 +85,6 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/crypto v0.24.0 // indirect
 	golang.org/x/exp v0.0.0-20231006140011-7918f672742d // indirect
-	golang.org/x/mobile v0.0.0-20240604190613-2782386b8afd // indirect
 	golang.org/x/mod v0.18.0 // indirect
 	golang.org/x/net v0.26.0 // indirect
 	golang.org/x/sync v0.7.0 // indirect
@@ -97,6 +96,6 @@ require (
 )
 
 replace (
-	github.com/elastic/gosigar => github.com/birros/gosigar v0.14.2-fix-ios	
+	github.com/elastic/gosigar => github.com/birros/gosigar v0.14.2-fix-ios
 	github.com/multiformats/go-multiaddr => github.com/athulantonynp/go-multiaddr v0.0.0-20240606071945-a474a56a4b42 // tmp, required for Android SDK30
 )

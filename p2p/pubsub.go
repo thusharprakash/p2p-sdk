@@ -1,12 +1,29 @@
 package p2p
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"time"
 
+	pubsub "github.com/libp2p/go-libp2p-pubsub"
+	"github.com/libp2p/go-libp2p/core/host"
 	"github.com/libp2p/go-libp2p/core/peer"
 )
+
+type EventRoom struct {
+	ctx         context.Context
+	ps          *pubsub.PubSub
+	topic       *pubsub.Topic
+	sub         *pubsub.Subscription
+	self        host.Host
+	nick        string
+	roomName    string
+	Messages    chan *EventMessage
+	VectorClock VectorClock
+	Storage     *Storage
+	P2P         *PeerToPeer
+}
 
 func (room *EventRoom) Publish(eventType, data string) error {
 	room.VectorClock.Increment(room.self.ID().String())
@@ -27,6 +44,10 @@ func (room *EventRoom) Publish(eventType, data string) error {
 
 func (room *EventRoom) ListPeers() []peer.ID {
 	return room.ps.ListPeers(topicName(room.roomName))
+}
+
+func topicName(roomName string) string {
+	return "event-room:" + roomName
 }
 
 func (room *EventRoom) readLoop(em *EventManager) {
@@ -50,13 +71,9 @@ func (room *EventRoom) readLoop(em *EventManager) {
 
 		// Save event to storage
 		if room.Storage != nil {
-			if err := room.Storage.AddEvent(*evt); err != nil {
+			if err := room.Storage.AddEventIfNotDuplicate(*evt); err != nil {
 				fmt.Printf("Error saving event: %s\n", err)
 			}
 		}
 	}
-}
-
-func topicName(roomName string) string {
-	return "event-room:" + roomName
 }
