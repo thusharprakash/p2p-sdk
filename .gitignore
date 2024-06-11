@@ -2,3 +2,9 @@ out/
 *.db
 .DS_Store
 .DS_Store?
+*.aar
+
+# OSX
+#
+.DS_Store
+MobileApp/.yarnrc.yml
