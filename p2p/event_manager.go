@@ -1,45 +1,62 @@
 package p2p
 
-import "sync"
+import (
+	"context"
+	"fmt"
+	"sync"
 
-type EventHandler func(EventMessage)
+	"github.com/libp2p/go-libp2p/core/host"
+	"github.com/libp2p/go-libp2p/core/peer"
+)
 
 type EventManager struct {
-	handlers      map[string][]EventHandler
-	mu            sync.RWMutex
-	vectorClockMu sync.Mutex
+	mu            sync.Mutex
+	eventHandlers map[string]func(EventMessage)
+	VectorClock   VectorClock
 }
 
 func NewEventManager() *EventManager {
 	return &EventManager{
-		handlers: make(map[string][]EventHandler),
+		eventHandlers: make(map[string]func(EventMessage)),
+		VectorClock:   make(VectorClock),
 	}
 }
 
-func (em *EventManager) Subscribe(eventType string, handler EventHandler) {
+func (em *EventManager) RegisterEventHandler(eventType string, handler func(EventMessage)) {
 	em.mu.Lock()
 	defer em.mu.Unlock()
-	em.handlers[eventType] = append(em.handlers[eventType], handler)
+	em.eventHandlers[eventType] = handler
 }
 
 func (em *EventManager) Dispatch(event EventMessage) {
-	em.mu.RLock()
-	defer em.mu.RUnlock()
-	if handlers, found := em.handlers[event.EventType]; found {
-		for _, handler := range handlers {
-			handler(event)
-		}
+	em.mu.Lock()
+	defer em.mu.Unlock()
+	if handler, ok := em.eventHandlers[event.EventType]; ok {
+		handler(event)
 	}
 }
 
 func (em *EventManager) DispatchWithOrdering(event EventMessage) {
-	em.vectorClockMu.Lock()
-	defer em.vectorClockMu.Unlock()
+	em.mu.Lock()
+	defer em.mu.Unlock()
+	em.VectorClock.Increment(event.SenderID)
+	em.VectorClock.Update(event.VectorClock)
+	if handler, ok := em.eventHandlers[event.EventType]; ok {
+		handler(event)
+	}
+}
 
-	// Ensure events are processed in logical order using vector clocks
-	if handlers, found := em.handlers[event.EventType]; found {
-		for _, handler := range handlers {
-			handler(event)
+func (em *EventManager) GossipEvent(ctx context.Context, event EventMessage, peers []peer.ID, host host.Host) {
+	for _, peerID := range peers {
+		if peerID == peer.ID(event.SenderID) {
+			continue
 		}
+		go func(p peer.ID) {
+			// Simulate gossiping event
+			fmt.Printf("Gossiping event to peer %s\n", p.String())
+			// Normally, send the event to the peer
+			// Use the host to send the event
+			// Example: host.SendMessage(p, event)
+		}(peerID)
 	}
 }

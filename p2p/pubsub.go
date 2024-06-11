@@ -50,7 +50,7 @@ func (room *EventRoom) readLoop(em *EventManager) {
 
 		// Save event to storage
 		if room.Storage != nil {
-			if err := room.Storage.SaveEvent(*evt); err != nil {
+			if err := room.Storage.AddEvent(*evt); err != nil {
 				fmt.Printf("Error saving event: %s\n", err)
 			}
 		}

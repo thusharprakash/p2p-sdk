@@ -1,5 +1,10 @@
 package p2p
 
+import (
+	"encoding/json"
+	"fmt"
+)
+
 type VectorClock map[string]int
 
 func (vc VectorClock) Increment(nodeID string) {
@@ -20,4 +25,18 @@ func (vc VectorClock) Copy() VectorClock {
 		newVC[node] = ts
 	}
 	return newVC
+}
+
+func (vc VectorClock) String() string {
+	data, _ := json.Marshal(vc)
+	return string(data)
+}
+
+func ParseVectorClock(vcStr string) (VectorClock, error) {
+	var vc VectorClock
+	err := json.Unmarshal([]byte(vcStr), &vc)
+	if err != nil {
+		return nil, fmt.Errorf("error parsing vector clock: %v", err)
+	}
+	return vc, nil
 }

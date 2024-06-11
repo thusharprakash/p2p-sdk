@@ -1,99 +1,104 @@
 package main
 
 import (
-	"bufio"
 	"context"
-	"flag"
 	"fmt"
+	"math/rand"
 	"os"
-	"strings"
+	"os/signal"
+	"path/filepath"
+	"syscall"
 	"time"
 
 	"p2p-sdk/p2p"
 )
 
 func main() {
-	nickFlag := flag.String("nick", "", "nickname to use in chat. will be generated if empty")
-	roomFlag := flag.String("room", "example-room", "name of chat room to join")
-	storagePathFlag := flag.String("storage", "events.db", "path to SQLite database file")
-	flag.Parse()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-	ctx := context.Background()
-
-	// Initialize the storage
-	storage, err := p2p.NewStorage(*storagePathFlag)
+	// Initialize P2P
+	p2pNode, err := p2p.NewP2P(ctx)
 	if err != nil {
-		panic(err)
+		fmt.Printf("Error initializing P2P: %v\n", err)
+		return
 	}
 
-	// Initialize the P2P library
-	p2pInstance, err := p2p.NewP2P(ctx)
+	// Generate a random database name and nickname
+	dbName := fmt.Sprintf("events_%d.db", rand.Int())
+	nickName := fmt.Sprintf("node%d", rand.Intn(1000))
+
+	// Ensure the data directory exists
+	dataDir := "data"
+	if err := os.MkdirAll(dataDir, os.ModePerm); err != nil {
+		fmt.Printf("Error creating data directory: %v\n", err)
+		return
+	}
+
+	// Initialize storage
+	storage, err := p2p.NewStorage(filepath.Join(dataDir, dbName))
 	if err != nil {
-		panic(err)
+		fmt.Printf("Error initializing storage: %v\n", err)
+		return
 	}
 
-	// Set the storage for P2P instance
-	p2pInstance.SetEventStorage(storage)
+	p2pNode.SetEventStorage(storage)
 
-	nick := *nickFlag
-	if len(nick) == 0 {
-		nick = p2p.DefaultNick(p2pInstance.Host.ID())
-	}
+	// Initialize Event Manager
+	eventManager := p2p.NewEventManager()
 
-	roomName := *roomFlag
-
-	room, err := p2pInstance.JoinRoom(ctx, roomName, nick)
-	if err != nil {
-		panic(err)
-	}
-
-	// Subscribe to message events
-	p2pInstance.EventManager.Subscribe(p2p.EventTypeMessage, func(event p2p.EventMessage) {
-		fmt.Printf("[%s] %s: %s\n", roomName, event.SenderNick, event.Data)
-		// Save event to storage
-		if err := storage.SaveEvent(event); err != nil {
-			fmt.Printf("Error saving event: %s\n", err)
+	// Register event handler
+	eventManager.RegisterEventHandler("message", func(event p2p.EventMessage) {
+		fmt.Printf("Received event from %s: %s\n", event.SenderNick, event.Data)
+		if err := storage.AddEventIfNotDuplicate(event); err != nil {
+			fmt.Printf("Error adding event to storage: %v\n", err)
 		}
 	})
 
-	// Create a set of initial events for testing
-	for i := 1; i <= 5; i++ {
-		eventData := fmt.Sprintf("Initial event %d", i)
-		if err := room.Publish(p2p.EventTypeMessage, eventData); err != nil {
-			fmt.Printf("Error publishing initial event: %s\n", err)
-		}
-		time.Sleep(1 * time.Second)
-	}
-
-	// Retrieve and print events from storage to verify persistence
-	events, err := storage.GetEvents()
+	// Sync with existing peers
+	existingEvents, err := storage.GetEvents()
 	if err != nil {
-		fmt.Printf("Error retrieving events: %s\n", err)
-	} else {
-		fmt.Println("Retrieved events from storage:")
-		for _, event := range events {
-			fmt.Printf("[%s] %s: %s\n", roomName, event.SenderNick, event.Data)
-		}
+		fmt.Printf("Error retrieving existing events: %v\n", err)
+		return
 	}
 
-	// Start interactive mode for user input
-	scanner := bufio.NewScanner(os.Stdin)
-	for scanner.Scan() {
-		text := scanner.Text()
-		if strings.TrimSpace(text) == "" {
-			continue
-		}
-		if text == "/quit" {
-			break
-		}
-		if err := room.Publish(p2p.EventTypeMessage, text); err != nil {
-			fmt.Printf("Error publishing message: %s\n", err)
-		}
+	for _, event := range existingEvents {
+		eventManager.DispatchWithOrdering(event)
 	}
 
-	if err := scanner.Err(); err != nil {
-		fmt.Printf("Error reading from stdin: %s\n", err)
+	// Join room
+	room, err := p2pNode.JoinRoom(ctx, "test-room", nickName)
+	if err != nil {
+		fmt.Printf("Error joining room: %v\n", err)
+		return
 	}
 
-	select {}
+	// Periodic synchronization
+	go storage.PeriodicSync(eventManager, p2pNode.Host.Peerstore().Peers(), p2pNode.Host, 30*time.Second)
+
+	// Publish random events
+	go func() {
+		for {
+			time.Sleep(5 * time.Second)
+			data := fmt.Sprintf("Random Event: %d", rand.Int())
+			if err := room.Publish("message", data); err != nil {
+				fmt.Printf("Error publishing random event: %v\n", err)
+			}
+		}
+	}()
+
+	// Send a chat message to all devices
+	go func() {
+		time.Sleep(10 * time.Second)
+		data := "Hello, this is a chat message to all devices!"
+		if err := room.Publish("message", data); err != nil {
+			fmt.Printf("Error publishing chat message: %v\n", err)
+		}
+	}()
+
+	// Handle graceful shutdown
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+	<-sigCh
+	fmt.Println("Shutting down...")
 }

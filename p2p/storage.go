@@ -1,11 +1,14 @@
 package p2p
 
 import (
+	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"sync"
+	"time"
 
+	"github.com/libp2p/go-libp2p/core/host"
+	"github.com/libp2p/go-libp2p/core/peer"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -34,69 +37,96 @@ func NewStorage(path string) (*Storage, error) {
 }
 
 func (s *Storage) init() error {
-	createTableSQL := `CREATE TABLE IF NOT EXISTS events (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
+	_, err := s.db.Exec(`CREATE TABLE IF NOT EXISTS events (
+		id INTEGER PRIMARY KEY,
 		event_type TEXT,
 		data TEXT,
 		sender_id TEXT,
 		sender_nick TEXT,
 		timestamp INTEGER,
 		vector_clock TEXT
-	);`
-
-	_, err := s.db.Exec(createTableSQL)
-	if err != nil {
-		return fmt.Errorf("failed to create table: %v", err)
-	}
-
-	return nil
+	)`)
+	return err
 }
 
-func (s *Storage) SaveEvent(event EventMessage) error {
+func (s *Storage) AddEvent(event EventMessage) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	vectorClockJSON, err := json.Marshal(event.VectorClock)
-	if err != nil {
-		return fmt.Errorf("failed to marshal vector clock: %v", err)
-	}
-
-	insertSQL := `INSERT INTO events (event_type, data, sender_id, sender_nick, timestamp, vector_clock) VALUES (?, ?, ?, ?, ?, ?);`
-	_, err = s.db.Exec(insertSQL, event.EventType, event.Data, event.SenderID, event.SenderNick, event.Timestamp, string(vectorClockJSON))
-	if err != nil {
-		return fmt.Errorf("failed to insert event: %v", err)
-	}
-
-	return nil
+	_, err := s.db.Exec(`INSERT INTO events (event_type, data, sender_id, sender_nick, timestamp, vector_clock) VALUES (?, ?, ?, ?, ?, ?)`,
+		event.EventType, event.Data, event.SenderID, event.SenderNick, event.Timestamp, event.VectorClock.String())
+	return err
 }
 
 func (s *Storage) GetEvents() ([]EventMessage, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	rows, err := s.db.Query("SELECT event_type, data, sender_id, sender_nick, timestamp, vector_clock FROM events")
+	rows, err := s.db.Query(`SELECT event_type, data, sender_id, sender_nick, timestamp, vector_clock FROM events`)
 	if err != nil {
-		return nil, fmt.Errorf("failed to select events: %v", err)
+		return nil, err
 	}
 	defer rows.Close()
 
 	var events []EventMessage
 	for rows.Next() {
 		var event EventMessage
-		var vectorClockJSON string
-
-		err = rows.Scan(&event.EventType, &event.Data, &event.SenderID, &event.SenderNick, &event.Timestamp, &vectorClockJSON)
-		if err != nil {
-			return nil, fmt.Errorf("failed to scan event: %v", err)
+		var vc string
+		if err := rows.Scan(&event.EventType, &event.Data, &event.SenderID, &event.SenderNick, &event.Timestamp, &vc); err != nil {
+			return nil, err
 		}
-
-		err = json.Unmarshal([]byte(vectorClockJSON), &event.VectorClock)
+		event.VectorClock, err = ParseVectorClock(vc)
 		if err != nil {
-			return nil, fmt.Errorf("failed to unmarshal vector clock: %v", err)
+			return nil, err
 		}
-
 		events = append(events, event)
 	}
 
 	return events, nil
-} 
+}
+
+func (s *Storage) AddEventIfNotDuplicate(event EventMessage) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	var count int
+	err := s.db.QueryRow(`SELECT COUNT(*) FROM events WHERE event_type = ? AND data = ? AND sender_id = ? AND timestamp = ? AND vector_clock = ?`,
+		event.EventType, event.Data, event.SenderID, event.Timestamp, event.VectorClock.String()).Scan(&count)
+	if err != nil {
+		return err
+	}
+
+	if count > 0 {
+		// Duplicate event found, discard it
+		return nil
+	}
+
+	return s.AddEvent(event)
+}
+
+func (s *Storage) SyncEvents(events []EventMessage) error {
+	for _, event := range events {
+		if err := s.AddEventIfNotDuplicate(event); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *Storage) PeriodicSync(eventManager *EventManager, peers []peer.ID, host host.Host, interval time.Duration) {
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		events, err := s.GetEvents()
+		if err != nil {
+			fmt.Printf("Error retrieving events: %v\n", err)
+			continue
+		}
+
+		for _, event := range events {
+			eventManager.DispatchWithOrdering(event)
+			eventManager.GossipEvent(context.Background(), event, peers, host)
+		}
+	}
+}
