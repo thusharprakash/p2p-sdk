@@ -2,6 +2,7 @@ package p2p
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"time"
 
@@ -91,10 +92,16 @@ func StartP2PChat(config *NodeConfig)(string){
 
 	// Sync with existing peers
 	existingEvents, err := storage.GetEvents()
+	for _, event := range existingEvents {
+		result,err := hex.DecodeString(event.Data)
+		if(err != nil){
+			fmt.Println("Error decoding existing event",err.Error())
+		}
+		fmt.Println("Existing event",string(result))
+	}
 	if err != nil {
 		fmt.Printf("Error retrieving existing events: %v\n", err)
 	}
-	fmt.Println("Existing events",existingEvents)
 	for _, event := range existingEvents {
 		p2pInstance.EventManager.DispatchWithOrdering(event)
 	}
