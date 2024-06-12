@@ -33,4 +33,10 @@ import P2p
     P2pPublishMessage(message,nil)
   }
   
+  @objc public func observePeers(callback: @escaping (String?) -> Void){
+    let sdkCallback = PeerListCallback{message in
+      callback(message)
+    }
+    P2pSubscribeToPeers(sdkCallback)
+  }
 }
