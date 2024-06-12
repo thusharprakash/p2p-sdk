@@ -1,6 +1,7 @@
 package com.mobileapp
 
 import android.os.Build
+import android.util.Log
 import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
@@ -52,6 +53,7 @@ class PeerModule(private val reactContext: ReactApplicationContext) : ReactConte
         Thread {
             val nodeConfig = P2p.newNodeConfig()
             nodeConfig.setStorage(path)
+            nodeConfig.setNickName(Build.BRAND+"_"+Build.DEVICE)
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 val inet = NetDriver()
@@ -62,6 +64,10 @@ class PeerModule(private val reactContext: ReactApplicationContext) : ReactConte
             sendMessageBackToReact(peerID,"PEER_ID")
             P2p.startSubscription {
                 sendMessageBackToReact(it,"P2P")
+            }
+            P2p.subscribeToPeers {
+                Log.e("PEERS",it)
+                sendMessageBackToReact(it,"PEERS")
             }
         }.start()
     }

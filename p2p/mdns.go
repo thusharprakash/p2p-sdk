@@ -42,16 +42,32 @@ func SetupDiscovery(h host.Host) error {
 	return nil
 }
 
+var DiscoveryTimeout = time.Second * 30
+
 type discoveryNotifee struct {
 	h host.Host
 }
 
 func (n *discoveryNotifee) HandlePeerFound(pi peer.AddrInfo) {
-	fmt.Printf("discovered new peer %s\n", pi.ID)
-	err := n.h.Connect(context.Background(), pi)
-	if err != nil {
-		fmt.Printf("error connecting to peer %s: %s\n", pi.ID, err)
+	if pi.ID == n.h.ID() {
+		fmt.Println("discarding self connection to Peer")
+		return
 	}
+	go func() {
+		var connectContext,cancel = context.WithTimeout(context.Background(), DiscoveryTimeout)
+		defer cancel()
+		for i := 0; i < 20; i++ {
+			fmt.Printf("discovered new peer %s\n", pi)
+			err := n.h.Connect(connectContext, pi)
+			if err != nil {
+			fmt.Printf("error connecting to peer %s: %s\n", pi.ID, err)
+			}else{
+				fmt.Printf("connected to peer %s\n", pi.ID)
+				break
+			}
+			time.Sleep(500*time.Millisecond)
+		}
+	}()
 }
 
 
@@ -63,8 +79,6 @@ const (
 	mdnsDomain      = "local"
 	dnsaddrPrefix   = "dnsaddr="
 )
-
-var DiscoveryTimeout = time.Second * 30
 
 var _ p2p_mdns.Service = (*mdnsService)(nil)
 

@@ -11,7 +11,6 @@ import (
 	"go.uber.org/zap"
 )
 
-var eventManager *EventManager
 var storage *Storage
 var p2pNode *PeerToPeer
 var globalRoom *EventRoom
@@ -22,12 +21,13 @@ type PeerMessageData struct{
 }
 
 func StartP2PChat(config *NodeConfig)(string){
-	nickFlag := GenerateRandomString(10)
-	roomFlag := "test-chat-room-dabzee"
 
 	if config == nil {
 		config = NewNodeConfig()
+		config.SetNickName(GenerateRandomString(10))
 	}
+	nickFlag := config.nickName
+	roomFlag := "test-chat-room-dabzee"
 
 	// Initialize the storage
 	newStorage,err := NewStorage(config.storagePath)
@@ -66,7 +66,6 @@ func StartP2PChat(config *NodeConfig)(string){
 
 	p2pInstance.SetEventStorage(storage)
 
-	eventManager = NewEventManager()
 	fmt.Printf("P2P instance created with ID %s\n", p2pInstance.Host.ID())
 	// use the nickname from the cli flag, or a default if blank
 	nick := nickFlag
@@ -97,7 +96,7 @@ func StartP2PChat(config *NodeConfig)(string){
 	}
 	fmt.Println("Existing events",existingEvents)
 	for _, event := range existingEvents {
-		eventManager.DispatchWithOrdering(event)
+		p2pInstance.EventManager.DispatchWithOrdering(event)
 	}
 
 	fmt.Println("P2P chat started")
@@ -106,7 +105,7 @@ func StartP2PChat(config *NodeConfig)(string){
 
 func StartSubscription(callback PeerMessageCallback){
 	// Listen for incoming messages
-	eventManager.RegisterEventHandler("message", func(event EventMessage) {
+	p2pNode.EventManager.RegisterEventHandler("message", func(event EventMessage) {
 		fmt.Println("Received event from %s: %s\n", event.SenderNick, event.Data)
 		callback.OnMessage(event.Data)
 		if err := storage.AddEventIfNotDuplicate(event); err != nil {
@@ -115,7 +114,17 @@ func StartSubscription(callback PeerMessageCallback){
 	})
 
 	// Periodic synchronization
-	go storage.PeriodicSync(eventManager, p2pNode.Host.Peerstore().Peers(), p2pNode.Host, 30*time.Second)
+	go storage.PeriodicSync(p2pNode.EventManager, p2pNode.Host.Peerstore().Peers(), p2pNode.Host, 30*time.Second)
+}
+
+func SubscribeToPeers(callback PeerCallback){
+	go func() {
+		for {
+			time.Sleep(5 * time.Second)
+			peers := p2pNode.Host.Peerstore().Peers()
+			callback.OnMessage(peers.String())
+		}
+	}()
 }
 
 func PublishMessage(message string) error {

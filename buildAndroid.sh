@@ -1,3 +1,15 @@
+function uninstall {
+  for device in $(adb devices | grep -v List | awk '{print $1}')
+  do
+    echo "Uninstalling from device $device"
+    adb -s $device uninstall com.mobileapp
+  done
+}
+
+if [[ $1 == "fresh" ]]; then
+  uninstall
+fi
+
 rm -rf p2p/out/android
 rm -rf ./MobileApp/android/app/libs/p2p.aar
 go get golang.org/x/mobile/cmd/gomobile
