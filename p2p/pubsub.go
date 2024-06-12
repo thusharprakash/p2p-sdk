@@ -42,6 +42,24 @@ func (room *EventRoom) Publish(eventType, data string) error {
 	return room.topic.Publish(room.ctx, msgBytes)
 }
 
+func (room *EventRoom) SendEventsToPeer(peerID peer.ID) error {
+	events, err := room.Storage.GetEvents()
+	if err != nil {
+		return fmt.Errorf("failed to get events: %w", err)
+	}
+
+	for _, event := range events {
+		msgBytes, err := json.Marshal(event)
+		if err != nil {
+			return fmt.Errorf("failed to marshal event: %w", err)
+		}
+		if err := room.topic.Publish(room.ctx, msgBytes); err != nil {
+			return fmt.Errorf("failed to publish event: %w", err)
+		}
+	}
+	return nil
+}
+
 func (room *EventRoom) ListPeers() []peer.ID {
 	return room.ps.ListPeers(topicName(room.roomName))
 }
@@ -58,7 +76,7 @@ func (room *EventRoom) readLoop(em *EventManager) {
 			return
 		}
 		// if msg.ReceivedFrom == room.self.ID() {
-		// 	continue
+		//     continue
 		// }
 		evt := new(EventMessage)
 		err = json.Unmarshal(msg.Data, evt)

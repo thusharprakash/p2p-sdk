@@ -106,6 +106,9 @@ func (p2p *PeerToPeer) JoinRoom(ctx context.Context, roomName, nick string) (*Ev
 
 	p2p.Rooms[roomName] = room
 
+	// send an inital message to the room with all the events
+	go room.SendEventsToPeer(p2p.Host.ID())
+
 	go room.readLoop(p2p.EventManager)
 	return room, nil
 }
