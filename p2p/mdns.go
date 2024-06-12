@@ -65,7 +65,7 @@ func (n *discoveryNotifee) HandlePeerFound(pi peer.AddrInfo) {
 				fmt.Printf("connected to peer %s\n", pi.ID)
 				break
 			}
-			time.Sleep(500*time.Millisecond)
+			time.Sleep(time.Duration(rand.Intn(2900)+100)*time.Millisecond)
 		}
 	}()
 }
