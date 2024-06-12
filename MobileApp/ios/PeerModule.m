@@ -38,6 +38,11 @@ RCT_EXPORT_METHOD(start)
   [peer startSDKSubscriptionWithCallback:^(NSString * _Nullable message) {
     [self sendEventWithName:@"P2P" body:@{@"message": message}];
   }];
+  
+  RCTLogInfo(@"Starting peer listing");
+  [peer observePeersWithCallback:^(NSString * _Nullable message) {
+    [self sendEventWithName:@"PEERS" body:@{@"message": message}];
+  }];
 }
 
 RCT_EXPORT_METHOD(sendMessage:(NSString *)message)
