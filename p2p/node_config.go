@@ -5,6 +5,7 @@ type NodeConfig struct {
 	netDriver        NativeNetDriver
 	mdnsLockerDriver NativeMDNSLockerDriver
 	storagePath string
+	nickName    string
 }
 
 func NewNodeConfig() *NodeConfig {
@@ -15,3 +16,4 @@ func NewNodeConfig() *NodeConfig {
 func (c *NodeConfig) SetNetDriver(driver NativeNetDriver)         { c.netDriver = driver }
 func (c *NodeConfig) SetMDNSLocker(driver NativeMDNSLockerDriver) { c.mdnsLockerDriver = driver }
 func (c *NodeConfig) SetStorage(path string) { c.storagePath = path }
+func (c *NodeConfig) SetNickName(name string) { c.nickName = name }

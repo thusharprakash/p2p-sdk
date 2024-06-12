@@ -57,9 +57,9 @@ func (room *EventRoom) readLoop(em *EventManager) {
 			close(room.Messages)
 			return
 		}
-		if msg.ReceivedFrom == room.self.ID() {
-			continue
-		}
+		// if msg.ReceivedFrom == room.self.ID() {
+		// 	continue
+		// }
 		evt := new(EventMessage)
 		err = json.Unmarshal(msg.Data, evt)
 		if err != nil {

@@ -52,6 +52,7 @@ class PeerModule(private val reactContext: ReactApplicationContext) : ReactConte
         Thread {
             val nodeConfig = P2p.newNodeConfig()
             nodeConfig.setStorage(path)
+            nodeConfig.setNickName(Build.BRAND+"_"+Build.DEVICE)
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 val inet = NetDriver()
