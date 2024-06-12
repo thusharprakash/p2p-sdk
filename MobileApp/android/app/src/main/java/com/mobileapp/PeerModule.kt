@@ -1,6 +1,7 @@
 package com.mobileapp
 
 import android.os.Build
+import android.util.Log
 import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
@@ -63,6 +64,10 @@ class PeerModule(private val reactContext: ReactApplicationContext) : ReactConte
             sendMessageBackToReact(peerID,"PEER_ID")
             P2p.startSubscription {
                 sendMessageBackToReact(it,"P2P")
+            }
+            P2p.subscribeToPeers {
+                Log.e("PEERS",it)
+                sendMessageBackToReact(it,"PEERS")
             }
         }.start()
     }

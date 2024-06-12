@@ -64,9 +64,7 @@ function App() {
     const emitter = new NativeEventEmitter(PeerModule);
     const orderListener = emitter.addListener('P2P', handleReceivedData);
     const peersListener = emitter.addListener('PEERS', data => {
-      setPeers(
-        JSON.parse(data.peers).map(peer => `${peer.Peer} ===> ${peer.Addr}`),
-      );
+      setPeers(data.message.split(','));
     });
     const peerIdListener = emitter.addListener('PEER_ID', data => {
       setPeerId(data.message);
@@ -184,14 +182,10 @@ function App() {
               {peers
                 .filter(peer => peer.toString().includes(searchTerm)) // Filter the peers based on the search term
                 .map((peer, index) => {
-                  const [peerId, peerAddr] = peer.toString().split(' ===> ');
                   return (
                     <View key={index} style={peerCardStyle}>
                       <Text style={[styles.peerText, textColor]}>
-                        Peer ID: {peerId}
-                      </Text>
-                      <Text style={[styles.peerText, textColor]}>
-                        Address: {peerAddr}
+                        {peer} {peer === peerId ? '(You)' : ''}
                       </Text>
                     </View>
                   );

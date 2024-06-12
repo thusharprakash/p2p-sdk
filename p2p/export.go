@@ -117,6 +117,16 @@ func StartSubscription(callback PeerMessageCallback){
 	go storage.PeriodicSync(p2pNode.EventManager, p2pNode.Host.Peerstore().Peers(), p2pNode.Host, 30*time.Second)
 }
 
+func SubscribeToPeers(callback PeerCallback){
+	go func() {
+		for {
+			time.Sleep(5 * time.Second)
+			peers := p2pNode.Host.Peerstore().Peers()
+			callback.OnMessage(peers.String())
+		}
+	}()
+}
+
 func PublishMessage(message string) error {
     return globalRoom.Publish(EventTypeMessage, message)
 }
