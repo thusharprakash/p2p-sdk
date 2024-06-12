@@ -2,7 +2,7 @@ function uninstall {
   for device in $(adb devices | grep -v List | awk '{print $1}')
   do
     echo "Uninstalling from device $device"
-    adb -s $device uninstall com.mobileapp
+    adb -s $device uninstall com.mobileapp || true
   done
 }
 
