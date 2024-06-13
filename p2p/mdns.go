@@ -22,7 +22,7 @@ import (
 
 func SetupDiscovery(h host.Host) error {
 	mdnslogger, _ := zap.NewDevelopment()
-	s := NewMdnsService(mdnslogger,h, DiscoveryServiceTag, &discoveryNotifee{h: h})
+	s := NewMdnsService(mdnslogger, h, DiscoveryServiceTag, &discoveryNotifee{h: h})
 
 	ifaces, err := GetMulticastInterfaces()
 	if err != nil {
@@ -54,23 +54,21 @@ func (n *discoveryNotifee) HandlePeerFound(pi peer.AddrInfo) {
 		return
 	}
 	go func() {
-		var connectContext,cancel = context.WithTimeout(context.Background(), DiscoveryTimeout)
+		var connectContext, cancel = context.WithTimeout(context.Background(), DiscoveryTimeout)
 		defer cancel()
-		for i := 0; i < 20; i++ {
+		for i := 0; i < 30; i++ {
 			fmt.Printf("discovered new peer %s\n", pi)
 			err := n.h.Connect(connectContext, pi)
 			if err != nil {
-			fmt.Printf("error connecting to peer %s: %s\n", pi.ID, err)
-			}else{
+				fmt.Printf("error connecting to peer %s: %s\n", pi.ID, err)
+			} else {
 				fmt.Printf("connected to peer %s\n", pi.ID)
 				break
 			}
-			time.Sleep(time.Duration(rand.Intn(2900)+100)*time.Millisecond)
+			time.Sleep(time.Duration(rand.Intn(2900)+100) * time.Millisecond)
 		}
 	}()
 }
-
-
 
 // NativeMDNSLockerDriver is an interface for locking and unlocking the MDNS service
 
@@ -148,7 +146,7 @@ func NewMdnsService(logger *zap.Logger, host host.Host, serviceName string, noti
 	return s
 }
 
-func  (s *mdnsService)Start() error {
+func (s *mdnsService) Start() error {
 	if err := s.startServer(); err != nil {
 		return err
 	}

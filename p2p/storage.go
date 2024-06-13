@@ -7,8 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/libp2p/go-libp2p/core/host"
-	"github.com/libp2p/go-libp2p/core/peer"
 	bolt "go.etcd.io/bbolt"
 )
 
@@ -89,18 +87,49 @@ func (event *EventMessage) ID() string {
 	return fmt.Sprintf("%s:%d", event.SenderID, event.Timestamp)
 }
 
-func (s *Storage) PeriodicSync(em *EventManager, peers []peer.ID, host host.Host, interval time.Duration) {
-	ticker := time.NewTicker(interval)
-	defer ticker.Stop()
-	for range ticker.C {
-		events, err := s.GetEvents()
+// func (s *Storage) PeriodicSync(em *EventManager, peers []peer.ID, host host.Host, interval time.Duration) {
+// 	ticker := time.NewTicker(interval)
+// 	defer ticker.Stop()
+// 	for range ticker.C {
+// 		events, err := s.GetEvents()
+// 		if err != nil {
+// 			fmt.Printf("Error retrieving events: %v\n", err)
+// 			continue
+// 		}
+// 		fmt.Printf("Dispatching %d events\n", len(events))
+// 		for _, event := range events {
+// 			em.DispatchWithOrdering(event)
+// 			em.GossipEvent(context.Background(), event, peers, host)
+// 		}
+// 	}
+// }
+
+func (s *Storage) SyncEvents(room *EventRoom) {
+	events, err := s.GetEvents()
+	if err != nil {
+		fmt.Printf("Error retrieving events from storage: %s\n", err)
+		return
+	}
+	for _, event := range events {
+		// Re-publish the events to ensure all peers receive them
+		msgBytes, err := json.Marshal(event)
 		if err != nil {
-			fmt.Printf("Error retrieving events: %v\n", err)
+			fmt.Printf("Error marshalling event: %v\n", err)
 			continue
 		}
-		for _, event := range events {
-			em.DispatchWithOrdering(event)
-			em.GossipEvent(context.Background(), event, peers, host)
+		room.topic.Publish(room.ctx, msgBytes)
+	}
+}
+
+func (s *Storage) PeriodicSync(ctx context.Context, room *EventRoom, interval time.Duration) {
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			s.SyncEvents(room)
+		case <-ctx.Done():
+			return
 		}
 	}
 }

@@ -74,7 +74,8 @@ func main() {
 	}
 
 	// Periodic synchronization
-	go storage.PeriodicSync(eventManager, p2pNode.Host.Peerstore().Peers(), p2pNode.Host, 30*time.Second)
+	// go storage.PeriodicSync(eventManager, p2pNode.Host.Peerstore().Peers(), p2pNode.Host, 30*time.Second)
+	go storage.PeriodicSync(ctx, room, 30*time.Second)
 
 	// Publish random events
 	go func() {

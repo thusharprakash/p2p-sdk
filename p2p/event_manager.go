@@ -44,6 +44,8 @@ func (em *EventManager) DispatchWithOrdering(event EventMessage) {
 	if handler, ok := em.eventHandlers[event.EventType]; ok {
 		handler(event)
 	}
+	// publish the events to the room
+
 }
 
 func (em *EventManager) GossipEvent(ctx context.Context, event EventMessage, peers []peer.ID, host host.Host) {

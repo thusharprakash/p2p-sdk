@@ -42,8 +42,11 @@ func (room *EventRoom) Publish(eventType, data string) error {
 	return room.topic.Publish(room.ctx, msgBytes)
 }
 
+
 func (room *EventRoom) SendEventsToPeer(peerID peer.ID) error {
 	events, err := room.Storage.GetEvents()
+	fmt.Printf("Sending %d events\n", len(events))
+	fmt.Println("Events being sent", events)
 	if err != nil {
 		return fmt.Errorf("failed to get events: %w", err)
 	}

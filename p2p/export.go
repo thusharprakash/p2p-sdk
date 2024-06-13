@@ -16,12 +16,12 @@ var storage *Storage
 var p2pNode *PeerToPeer
 var globalRoom *EventRoom
 
-type PeerMessageData struct{
+type PeerMessageData struct {
 	message string
-	sender string
+	sender  string
 }
 
-func StartP2PChat(config *NodeConfig)(string){
+func StartP2PChat(config *NodeConfig) string {
 
 	if config == nil {
 		config = NewNodeConfig()
@@ -31,7 +31,7 @@ func StartP2PChat(config *NodeConfig)(string){
 	roomFlag := "test-chat-room-dabzee"
 
 	// Initialize the storage
-	newStorage,err := NewStorage(config.storagePath)
+	newStorage, err := NewStorage(config.storagePath)
 	storage = newStorage
 	if err != nil {
 		panic(err)
@@ -48,7 +48,6 @@ func StartP2PChat(config *NodeConfig)(string){
 		internal.SetNetDriver(inet)
 		manet.SetNetInterface(inet)
 	}
-
 
 	mdnsLocked := false
 
@@ -86,18 +85,18 @@ func StartP2PChat(config *NodeConfig)(string){
 		panic(err)
 	}
 
-	if mdnsLocked && config.mdnsLockerDriver != nil{
+	if mdnsLocked && config.mdnsLockerDriver != nil {
 		config.mdnsLockerDriver.Unlock()
 	}
 
 	// Sync with existing peers
 	existingEvents, err := storage.GetEvents()
 	for _, event := range existingEvents {
-		result,err := hex.DecodeString(event.Data)
-		if(err != nil){
-			fmt.Println("Error decoding existing event",err.Error())
+		result, err := hex.DecodeString(event.Data)
+		if err != nil {
+			fmt.Println("Error decoding existing event", err.Error())
 		}
-		fmt.Println("Existing event",string(result))
+		fmt.Println("Existing event", string(result))
 	}
 	if err != nil {
 		fmt.Printf("Error retrieving existing events: %v\n", err)
@@ -110,21 +109,23 @@ func StartP2PChat(config *NodeConfig)(string){
 	return p2pInstance.Host.ID().String()
 }
 
-func StartSubscription(callback PeerMessageCallback){
+func StartSubscription(callback PeerMessageCallback) {
 	// Listen for incoming messages
 	p2pNode.EventManager.RegisterEventHandler("message", func(event EventMessage) {
-		fmt.Println("Received event from %s: %s\n", event.SenderNick, event.Data)
-		callback.OnMessage(event.Data)
+		fmt.Printf("Received event from %s: %s\n", event.SenderNick, event.Data)
+		// callback.OnMessage(event.Data)
 		if err := storage.AddEventIfNotDuplicate(event); err != nil {
 			fmt.Printf("Error adding event to storage: %v\n", err)
 		}
+		// msg := storage.
 	})
 
 	// Periodic synchronization
-	go storage.PeriodicSync(p2pNode.EventManager, p2pNode.Host.Peerstore().Peers(), p2pNode.Host, 30*time.Second)
+	// go storage.PeriodicSync(p2pNode.EventManager, p2pNode.Host.Peerstore().Peers(), p2pNode.Host, 30*time.Second)
+	go storage.PeriodicSync(context.Background(), globalRoom, 30*time.Second)
 }
 
-func SubscribeToPeers(callback PeerCallback){
+func SubscribeToPeers(callback PeerCallback) {
 	go func() {
 		for {
 			time.Sleep(5 * time.Second)
@@ -135,5 +136,5 @@ func SubscribeToPeers(callback PeerCallback){
 }
 
 func PublishMessage(message string) error {
-    return globalRoom.Publish(EventTypeMessage, message)
+	return globalRoom.Publish(EventTypeMessage, message)
 }

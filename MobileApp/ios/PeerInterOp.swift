@@ -16,7 +16,9 @@ import P2p
   
   @objc public func start() -> String{
     let config = P2pNodeConfig()
-    config?.setStorage("events.db")
+    let documentsDirectory = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true)[0]
+    let dbPath = documentsDirectory.appending("/events.db")
+    config?.setStorage(dbPath)
     let id = P2pStartP2PChat(config)
     return id
   }
