@@ -47,6 +47,16 @@ class PeerModule(private val reactContext: ReactApplicationContext) : ReactConte
             .emit(tag, map)
     }
 
+    @ReactMethod
+    fun addListener(type: String?) {
+        // Keep: Required for RN built in Event Emitter Calls.
+    }
+
+    @ReactMethod
+    fun removeListeners(type: Int?) {
+        // Keep: Required for RN built in Event Emitter Calls.
+    }
+
     private fun startSdk(){
         val path = reactContext.filesDir.absolutePath +"/events.db"
         val mdnsLockerDriver = MDNSLockerDriver(reactContext)

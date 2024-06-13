@@ -21,10 +21,12 @@ const OrderCard = ({
   order,
   onUpdateOrder,
   lastProcessedEventIds,
+  number,
 }: {
   order: any;
   onUpdateOrder: any;
   lastProcessedEventIds: any;
+  number: number;
 }) => {
   const [collapsed, setCollapsed] = useState(true);
   const isDarkMode = useColorScheme() === 'dark';
@@ -48,7 +50,9 @@ const OrderCard = ({
   return (
     <View style={[styles.card, cardStyle]}>
       <View style={styles.header}>
-        <Text style={[styles.title, textStyle]}>Order ID: {orderId}</Text>
+        <Text style={[styles.title, textStyle]}>
+          {number + 1}.Order ID: {orderId}
+        </Text>
         <TouchableOpacity onPress={toggleCollapse}>
           <Icon
             name={collapsed ? 'chevron-down' : 'chevron-up'}
