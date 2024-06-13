@@ -3,6 +3,7 @@ package p2p
 import (
 	"context"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -113,11 +114,27 @@ func StartSubscription(callback PeerMessageCallback) {
 	// Listen for incoming messages
 	p2pNode.EventManager.RegisterEventHandler("message", func(event EventMessage) {
 		fmt.Printf("Received event from %s: %s\n", event.SenderNick, event.Data)
-		// callback.OnMessage(event.Data)
 		if err := storage.AddEventIfNotDuplicate(event); err != nil {
 			fmt.Printf("Error adding event to storage: %v\n", err)
 		}
-		// msg := storage.
+
+		events,error := storage.GetEvents()
+		if(error != nil){
+			fmt.Println("Error getting events from storage0")
+		}else{
+			var out []string
+			for _, event := range events {
+				hexMessage, _ := hex.DecodeString(event.Data)
+				out = append(out,string(hexMessage))
+			}
+			jsonOut, err := json.Marshal(out)
+			if err != nil {
+				fmt.Println("Error marshalling events to JSON")
+			}else{
+				callback.OnMessage(string(jsonOut))
+			}
+		}
+		
 	})
 
 	// Periodic synchronization

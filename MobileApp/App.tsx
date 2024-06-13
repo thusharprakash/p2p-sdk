@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from 'react';
+import React, {useCallback, useEffect, useState} from 'react';
 import {
   SafeAreaView,
   ScrollView,
@@ -60,6 +60,31 @@ function App() {
     shadowRadius: 3.84,
     elevation: 5,
   };
+
+  const handleReceivedData = useCallback(
+    data => {
+      const ordersData = JSON.parse(data.message) as Array<string>;
+      var prevOrders = orders;
+      var newEventMap = new Map(lastProcessedEventIds);
+
+      for (const childData of ordersData) {
+        const orderData = JSON.parse(childData);
+        const prevOrder = prevOrders[orderData.orderId];
+        const newOrder = computeOrderState(
+          orderData.events,
+          prevOrder || undefined,
+        );
+        prevOrders = {...prevOrders, [orderData.orderId]: newOrder};
+
+        const lastEventId = orderData.events[orderData.events.length - 1].id;
+        newEventMap.set(orderData.orderId, lastEventId);
+      }
+      setOrders(prevOrders);
+      setLastProcessedEventIds(newEventMap);
+    },
+    [lastProcessedEventIds, orders],
+  );
+
   useEffect(() => {
     const emitter = new NativeEventEmitter(PeerModule);
     const orderListener = emitter.addListener('P2P', handleReceivedData);
@@ -77,30 +102,7 @@ function App() {
       peersListener.remove();
       peerIdListener.remove();
     };
-  }, []);
-
-  const handleReceivedData = data => {
-    const message = Buffer.from(data.message, 'hex').toString();
-    const orderData = JSON.parse(message);
-    console.log('Received order data:', orderData);
-
-    setOrders(prevOrders => {
-      const prevOrder = prevOrders[orderData.orderId];
-      const newOrder = computeOrderState(
-        orderData.events,
-        prevOrder || undefined,
-      );
-      console.log('Previous order:', prevOrder);
-      console.log('New order:', newOrder);
-
-      return {...prevOrders, [orderData.orderId]: newOrder};
-    });
-
-    setLastProcessedEventIds(prevEventIds => {
-      const lastEventId = orderData.events[orderData.events.length - 1].id;
-      return new Map(prevEventIds).set(orderData.orderId, lastEventId);
-    });
-  };
+  }, [handleReceivedData]);
 
   const createOrder = index => {
     const newOrderEvents = generateOrder(index);
