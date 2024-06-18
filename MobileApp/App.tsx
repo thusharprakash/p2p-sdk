@@ -24,13 +24,21 @@ import {generateOrder, updateOrder} from './utils';
 import {computeOrderState} from '@oolio-group/order-helper';
 import OrderCard from './orderCard';
 import _ from 'lodash';
+import {getDeviceNameSync} from 'react-native-device-info';
+import {
+  addGlobalEvents,
+  generateFullOrdersFromCache,
+  generateOrdersFromCache,
+  getLastEvent,
+  globalCache,
+} from './globalcache';
 
 let isDarkMode;
 function App() {
   isDarkMode = useColorScheme() === 'dark';
   const [orders, setOrders] = useState({});
-  const [lastProcessedEventIds, setLastProcessedEventIds] = useState(new Map());
   const [modalVisible, setModalVisible] = useState(false);
+  const [cacheModalVisible, setCacheModalVisible] = useState(false);
   const [peers, setPeers] = useState([]);
   const [peerId, setPeerId] = useState('');
 
@@ -66,30 +74,28 @@ function App() {
   const handleReceivedData = useCallback(
     data => {
       const ordersData = JSON.parse(data.message) as Array<string>;
-      var prevOrders = orders;
-      var newEventMap = new Map(lastProcessedEventIds);
-
+      // var prevOrders = orders;
+      console.log('Device name=> ', getDeviceNameSync());
       for (const childData of ordersData) {
         const orderData = JSON.parse(childData);
-        const prevOrder = prevOrders[orderData.orderId];
-        const newOrder = computeOrderState(
-          orderData.events,
-          prevOrder || undefined,
-        );
-        prevOrders = {...prevOrders, [orderData.orderId]: newOrder};
-
-        const lastEventId = orderData.events[orderData.events.length - 1].id;
-        newEventMap.set(orderData.orderId, lastEventId);
+        // const prevOrder = prevOrders[orderData.orderId];
+        // const newOrder = computeOrderState(
+        //   orderData.events,
+        //   prevOrder || undefined,
+        // );
+        // prevOrders = {...prevOrders, [orderData.orderId]: newOrder};
+        addGlobalEvents(orderData.orderId, orderData.events);
       }
-      if (!_.isEqual(prevOrders, orders)) {
-        setOrders(prevOrders);
-      }
-
-      if (!_.isEqual(newEventMap, lastProcessedEventIds)) {
-        setLastProcessedEventIds(newEventMap);
+      const newOrders = generateFullOrdersFromCache();
+      if (!_.isEqual(newOrders, orders)) {
+        const out = {};
+        for (const order of newOrders) {
+          out[order.id] = order;
+        }
+        setOrders(out);
       }
     },
-    [lastProcessedEventIds, orders],
+    [orders],
   );
 
   useEffect(() => {
@@ -123,8 +129,7 @@ function App() {
   };
 
   const updateOrderEvent = orderId => {
-    const lastEventId = lastProcessedEventIds.get(orderId);
-    const updatedEvents = updateOrder(orderId, lastEventId);
+    const updatedEvents = updateOrder(orderId, getLastEvent(orderId));
     const message = Buffer.from(
       JSON.stringify({
         orderId: orderId,
@@ -148,7 +153,6 @@ function App() {
             key={id}
             order={order}
             onUpdateOrder={() => updateOrderEvent(id)}
-            lastProcessedEventIds={lastProcessedEventIds}
             number={index}
           />
         ))}
@@ -168,6 +172,12 @@ function App() {
           onPress={() => setModalVisible(true)}>
           <Icon name="account-multiple" size={20} color="#fff" />
           <Text style={styles.iconText}>Show Peers</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.iconButton}
+          onPress={() => setCacheModalVisible(true)}>
+          <Icon name="account-multiple" size={20} color="#fff" />
+          <Text style={styles.iconText}>Show Cache</Text>
         </TouchableOpacity>
       </View>
       <Modal
@@ -205,6 +215,28 @@ function App() {
             <TouchableOpacity
               style={styles.buttonClose}
               onPress={() => setModalVisible(!modalVisible)}>
+              <Text style={styles.textStyle}>Hide Modal</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={cacheModalVisible}
+        onRequestClose={() => setModalVisible(!cacheModalVisible)}>
+        <View style={styles.centeredView}>
+          <View
+            style={[
+              styles.modalView,
+              // eslint-disable-next-line react-native/no-inline-styles
+              {backgroundColor: isDarkMode ? '#555' : '#fff'},
+            ]}>
+            <Text selectable>{JSON.stringify(generateOrdersFromCache())}</Text>
+            <TouchableOpacity
+              style={styles.buttonClose}
+              onPress={() => setCacheModalVisible(!cacheModalVisible)}>
               <Text style={styles.textStyle}>Hide Modal</Text>
             </TouchableOpacity>
           </View>

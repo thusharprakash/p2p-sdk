@@ -10,6 +10,7 @@ import {
   Platform,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import {getLastEvent} from './globalcache';
 
 // Enable LayoutAnimation on Android
 if (Platform.OS === 'android') {
@@ -20,17 +21,14 @@ if (Platform.OS === 'android') {
 const OrderCard = ({
   order,
   onUpdateOrder,
-  lastProcessedEventIds,
   number,
 }: {
   order: any;
   onUpdateOrder: any;
-  lastProcessedEventIds: any;
   number: number;
 }) => {
   const [collapsed, setCollapsed] = useState(true);
   const isDarkMode = useColorScheme() === 'dark';
-  const lastEventId = lastProcessedEventIds.get(order.id);
   const orderId = order.id;
 
   const toggleCollapse = () => {
@@ -81,7 +79,7 @@ const OrderCard = ({
       )}
       <TouchableOpacity
         style={styles.updateButton}
-        onPress={() => onUpdateOrder(orderId, lastEventId)}>
+        onPress={() => onUpdateOrder(orderId, getLastEvent())}>
         <Text style={styles.buttonText}>Update Order</Text>
       </TouchableOpacity>
     </View>

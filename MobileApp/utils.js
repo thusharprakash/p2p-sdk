@@ -24,7 +24,8 @@ export const generateOrder = id => {
 };
 
 export const updateOrder = (id, previous) => {
-  const itemEvent = updateWithItems;
+  console.log('update order', id);
+  const itemEvent = updateWithItems();
   return itemEvent.map(event => {
     return {
       ...event,
