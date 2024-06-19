@@ -21,16 +21,13 @@ import {NativeModules} from 'react-native';
 const {PeerModule} = NativeModules;
 
 import {generateOrder, updateOrder} from './utils';
-import {computeOrderState} from '@oolio-group/order-helper';
 import OrderCard from './orderCard';
 import _ from 'lodash';
-import {getDeviceNameSync} from 'react-native-device-info';
 import {
   addGlobalEvents,
   generateFullOrdersFromCache,
   generateOrdersFromCache,
   getLastEvent,
-  globalCache,
 } from './globalcache';
 
 let isDarkMode;
@@ -71,32 +68,31 @@ function App() {
     elevation: 5,
   };
 
-  const handleReceivedData = useCallback(
-    data => {
-      const ordersData = JSON.parse(data.message) as Array<string>;
-      // var prevOrders = orders;
-      console.log('Device name=> ', getDeviceNameSync());
-      for (const childData of ordersData) {
-        const orderData = JSON.parse(childData);
-        // const prevOrder = prevOrders[orderData.orderId];
-        // const newOrder = computeOrderState(
-        //   orderData.events,
-        //   prevOrder || undefined,
-        // );
-        // prevOrders = {...prevOrders, [orderData.orderId]: newOrder};
-        addGlobalEvents(orderData.orderId, orderData.events);
-      }
-      const newOrders = generateFullOrdersFromCache();
-      if (!_.isEqual(newOrders, orders)) {
+  const handleReceivedData = useCallback(data => {
+    console.log('Received data:');
+    const ordersData = JSON.parse(data.message) as Array<string>;
+    // var prevOrders = orders;
+    for (const childData of ordersData) {
+      const orderData = JSON.parse(childData);
+      // const prevOrder = prevOrders[orderData.orderId];
+      // const newOrder = computeOrderState(
+      //   orderData.events,
+      //   prevOrder || undefined,
+      // );
+      // prevOrders = {...prevOrders, [orderData.orderId]: newOrder};
+      addGlobalEvents(orderData.orderId, orderData.events);
+    }
+    const newOrders = generateFullOrdersFromCache();
+    setOrders(prevOrders => {
+      if (!_.isEqual(newOrders, prevOrders)) {
         const out = {};
         for (const order of newOrders) {
           out[order.id] = order;
         }
-        setOrders(out);
+        return out;
       }
-    },
-    [orders],
-  );
+    });
+  }, []);
 
   useEffect(() => {
     const emitter = new NativeEventEmitter(PeerModule);
@@ -125,6 +121,7 @@ function App() {
         events: newOrderEvents,
       }),
     ).toString('hex');
+    console.log('Sending create order to native');
     PeerModule.sendMessage(message);
   };
 
@@ -136,6 +133,7 @@ function App() {
         events: updatedEvents,
       }),
     ).toString('hex');
+    console.log('Sending message to native');
     PeerModule.sendMessage(message);
   };
 
