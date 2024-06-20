@@ -24,19 +24,24 @@ func SetupDiscovery(h host.Host) error {
 	mdnslogger, _ := zap.NewDevelopment()
 	s := NewMdnsService(mdnslogger, h, DiscoveryServiceTag, &discoveryNotifee{h: h})
 
+	LogToNative("Getting multicast interfaces")
 	ifaces, err := GetMulticastInterfaces()
 	if err != nil {
+		LogToNative("Failed to get multicast interfaces -> "+ err.Error())
 		fmt.Println("Failed to get multicast interfaces", err)
 		return err
 	}
 
 	// If multicast interfaces are found, start the mDNS service.
 	if len(ifaces) > 0 {
+		LogToNative("Starting mDNS")
 		mdnslogger.Info("starting mdns")
 		if err := s.Start(); err != nil {
+			LogToNative("Failed to start mDNS -> "+ err.Error())
 			return nil
 		}
 	} else {
+		LogToNative("No multicast interfaces found")
 		mdnslogger.Error("unable to start mdns service, no multicast interfaces found")
 	}
 	return nil
@@ -50,6 +55,7 @@ type discoveryNotifee struct {
 
 func (n *discoveryNotifee) HandlePeerFound(pi peer.AddrInfo) {
 	if pi.ID == n.h.ID() {
+		LogToNative("Discarding self connection to Peer")
 		fmt.Println("discarding self connection to Peer")
 		return
 	}
@@ -58,10 +64,13 @@ func (n *discoveryNotifee) HandlePeerFound(pi peer.AddrInfo) {
 		defer cancel()
 		for i := 0; i < 30; i++ {
 			fmt.Printf("discovered new peer %s\n", pi)
+			LogToNative("Discovered new peer " + pi.ID.String());
 			err := n.h.Connect(connectContext, pi)
 			if err != nil {
+				LogToNative("Error connecting to peer "+ pi.ID.String() + " -> "+ err.Error())
 				fmt.Printf("error connecting to peer %s: %s\n", pi.ID, err)
 			} else {
+				LogToNative("Connected to peer "+ pi.ID.String())
 				fmt.Printf("connected to peer %s\n", pi.ID)
 				break
 			}
@@ -190,6 +199,7 @@ func (s *mdnsService) getIPs(addrs []ma.Multiaddr) ([]string, error) {
 		ips = append(ips, ip6)
 	}
 	if len(ips) == 0 {
+		LogToNative("Didn't find any IP addresses")
 		return nil, errors.New("didn't find any IP addresses")
 	}
 	return ips, nil
@@ -225,6 +235,7 @@ func (s *mdnsService) startServer() error {
 		return err
 	}
 	s.logger.Debug("multicast interfaces found", zap.Int("ifaces", len(ifaces)))
+	LogToNative("Multicast interfaces found: "+ fmt.Sprint(len(ifaces)))
 
 	server, err := zeroconf.RegisterProxy(
 		s.peerName,
@@ -255,11 +266,13 @@ func (s *mdnsService) startResolver(ctx context.Context) {
 			for _, text := range entry.Text {
 				if !strings.HasPrefix(text, dnsaddrPrefix) {
 					s.logger.Warn("missing dnsaddr prefix")
+					LogToNative("Missing dnsaddr prefix")
 					continue
 				}
 				addr, err := ma.NewMultiaddr(text[len(dnsaddrPrefix):])
 				if err != nil {
 					s.logger.Warn("failed to parse multiaddr", zap.String("addr", text[len(dnsaddrPrefix):]), zap.Error(err))
+					LogToNative("Failed to parse multiaddr -> "+ err.Error())
 					continue
 				}
 				addrs = append(addrs, addr)
@@ -267,6 +280,7 @@ func (s *mdnsService) startResolver(ctx context.Context) {
 			infos, err := peer.AddrInfosFromP2pAddrs(addrs...)
 			if err != nil {
 				s.logger.Debug("failed to get peer info", zap.Error(err))
+				LogToNative("Failed to get peer info -> "+ err.Error())
 				continue
 			}
 			for _, info := range infos {
@@ -279,6 +293,7 @@ func (s *mdnsService) startResolver(ctx context.Context) {
 		ifaces, err := internals.GetNetDriver().Interfaces()
 		if err != nil {
 			s.logger.Error("zeroconf failed to get device interfaces", zap.Error(err))
+			LogToNative("Zeroconf failed to get device interfaces -> "+ err.Error())
 			return
 		}
 		// filter Multicast interfaces
@@ -287,6 +302,7 @@ func (s *mdnsService) startResolver(ctx context.Context) {
 		defer s.resolverWG.Done()
 		if err := zeroconf.Browse(ctx, s.serviceName, mdnsDomain, entryChan, zeroconf.SelectIfaces(ifaces)); err != nil {
 			s.logger.Error("zeroconf browsing failed", zap.Error(err))
+			LogToNative("Zeroconf browsing failed -> "+ err.Error())
 		}
 	}()
 }

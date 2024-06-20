@@ -36,6 +36,7 @@ function App() {
   const [orders, setOrders] = useState({});
   const [modalVisible, setModalVisible] = useState(false);
   const [cacheModalVisible, setCacheModalVisible] = useState(false);
+  const [showLogModale, setShowLogModal] = useState(false); // [showLogModal, setShowLogModal
   const [peers, setPeers] = useState([]);
   const [peerId, setPeerId] = useState('');
 
@@ -125,6 +126,16 @@ function App() {
     PeerModule.sendMessage(message);
   };
 
+  const getLogs = () => {
+    try {
+      const logs = PeerModule.getLogs();
+      const logsArray = JSON.parse(logs) as Array<string>;
+      return logsArray.join('\n');
+    } catch (e) {
+      return 'error';
+    }
+  };
+
   const updateOrderEvent = orderId => {
     const updatedEvents = updateOrder(orderId, getLastEvent(orderId));
     const message = Buffer.from(
@@ -176,6 +187,13 @@ function App() {
           onPress={() => setCacheModalVisible(true)}>
           <Icon name="account-multiple" size={20} color="#fff" />
           <Text style={styles.iconText}>Show Cache</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.iconButton}
+          onPress={() => setShowLogModal(true)}>
+          <Icon name="account-multiple" size={20} color="#fff" />
+          <Text style={styles.iconText}>Show Logs</Text>
         </TouchableOpacity>
       </View>
       <Modal
@@ -237,6 +255,30 @@ function App() {
               onPress={() => setCacheModalVisible(!cacheModalVisible)}>
               <Text style={styles.textStyle}>Hide Modal</Text>
             </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={showLogModale}
+        onRequestClose={() => setShowLogModal(!showLogModale)}>
+        <View style={styles.centeredView}>
+          <View
+            style={[
+              styles.modalView,
+              // eslint-disable-next-line react-native/no-inline-styles
+              {backgroundColor: isDarkMode ? '#555' : '#fff'},
+            ]}>
+            <ScrollView>
+              <Text selectable>{getLogs()}</Text>
+              <TouchableOpacity
+                style={styles.buttonClose}
+                onPress={() => setShowLogModal(!showLogModale)}>
+                <Text style={styles.textStyle}>Hide Modal</Text>
+              </TouchableOpacity>
+            </ScrollView>
           </View>
         </View>
       </Modal>

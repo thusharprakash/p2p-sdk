@@ -35,6 +35,7 @@ type EventMessage struct {
 
 func NewP2P(ctx context.Context) (*PeerToPeer, error) {
 	fmt.Println("Initializing P2P")
+	LogToNative("Initializing P2P")
 	h, err := libp2p.New(
 		libp2p.Security(noise.ID, noise.New),
 		libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"))
@@ -43,12 +44,14 @@ func NewP2P(ctx context.Context) (*PeerToPeer, error) {
 	}
 
 	fmt.Println("Initializing PubSub")
+	LogToNative("Initializing PubSub")
 	ps, err := pubsub.NewGossipSub(ctx, h)
 	if err != nil {
 		return nil, err
 	}
 
 	fmt.Println("Setting up discovery")
+	LogToNative("Setting up discovery")
 	if err := SetupDiscovery(h); err != nil {
 		return nil, err
 	}
