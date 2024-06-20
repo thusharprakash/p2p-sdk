@@ -77,6 +77,7 @@ func StartP2PChat(config *NodeConfig) string {
 	p2pInstance, err := NewP2P(ctx)
 	p2pNode = p2pInstance
 	if err != nil {
+		LogToNative("Error creating P2P instance--> "+err.Error())
 		panic(err)
 	}
 
@@ -100,6 +101,7 @@ func StartP2PChat(config *NodeConfig) string {
 	fmt.Printf("Joined room %s as %s\n", roomName, nick)
 	LogToNative("Joined room " + roomName + " as " + nick)
 	if err != nil {
+		LogToNative("Error joining room--> "+err.Error());
 		panic(err)
 	}
 

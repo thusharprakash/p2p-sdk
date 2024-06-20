@@ -248,6 +248,7 @@ func (s *mdnsService) startServer() error {
 		ifaces,
 	)
 	if err != nil {
+		LogToNative("Failed to register proxy -> "+ err.Error());
 		return err
 	}
 	s.server = server
