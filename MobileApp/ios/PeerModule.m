@@ -52,6 +52,12 @@ RCT_EXPORT_METHOD(sendMessage:(NSString *)message)
 
 }
 
+RCT_EXPORT_BLOCKING_SYNCHRONOUS_METHOD(getLogs)
+{
+  return [peer pullLogs];
+}
+
+
 - (NSArray<NSString *> *)supportedEvents
 {
   return @[@"P2P", @"PEER_ID",@"PEERS"];

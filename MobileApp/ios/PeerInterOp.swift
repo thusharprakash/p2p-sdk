@@ -41,4 +41,8 @@ import P2p
     }
     P2pSubscribeToPeers(sdkCallback)
   }
+  
+  @objc public func pullLogs()->String {
+    return P2pPullLogs()
+  }
 }

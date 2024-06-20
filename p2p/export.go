@@ -17,9 +17,23 @@ var storage *Storage
 var p2pNode *PeerToPeer
 var globalRoom *EventRoom
 
+var logMessageCallback = []string{}
+
 type PeerMessageData struct {
 	message string
 	sender  string
+}
+
+func LogToNative(message string) {
+	logMessageCallback = append(logMessageCallback, message)
+}
+
+func PullLogs() string {
+	jsonOut, err := json.Marshal(logMessageCallback)
+	if err != nil {
+		fmt.Println("Error marshalling logs to JSON")
+	}
+	return string(jsonOut)
 }
 
 func StartP2PChat(config *NodeConfig) string {
@@ -31,6 +45,7 @@ func StartP2PChat(config *NodeConfig) string {
 	nickFlag := config.nickName
 	roomFlag := "test-chat-room-dabzee"
 
+	LogToNative("Starting P2P chat with nickname " + nickFlag)
 	// Initialize the storage
 	newStorage, err := NewStorage(config.storagePath)
 	storage = newStorage
@@ -68,6 +83,7 @@ func StartP2PChat(config *NodeConfig) string {
 	p2pInstance.SetEventStorage(storage)
 
 	fmt.Printf("P2P instance created with ID %s\n", p2pInstance.Host.ID())
+	LogToNative("P2P instance created with ID " + p2pInstance.Host.ID().String())
 	// use the nickname from the cli flag, or a default if blank
 	nick := nickFlag
 	if len(nickFlag) == 0 {
@@ -82,6 +98,7 @@ func StartP2PChat(config *NodeConfig) string {
 
 	globalRoom = room
 	fmt.Printf("Joined room %s as %s\n", roomName, nick)
+	LogToNative("Joined room " + roomName + " as " + nick)
 	if err != nil {
 		panic(err)
 	}

@@ -36,6 +36,12 @@ class PeerModule(private val reactContext: ReactApplicationContext) : ReactConte
     fun sendMessage(message: String) {
         P2p.publishMessage(message)
     }
+    
+    @ReactMethod
+    fun getLogs():String {
+       return P2p.pullLogs()
+    }
+
 
     private fun sendMessageBackToReact(message: String,tag:String){
         val map = Arguments.createMap()
@@ -56,6 +62,7 @@ class PeerModule(private val reactContext: ReactApplicationContext) : ReactConte
     fun removeListeners(type: Int?) {
         // Keep: Required for RN built in Event Emitter Calls.
     }
+
 
     private fun startSdk(){
         val path = reactContext.filesDir.absolutePath +"/events.db"
