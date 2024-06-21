@@ -139,9 +139,9 @@ func (dh *discoveryHandler) HandlePeerFound(p peer.AddrInfo) {
 }
 
 func NewMdnsService(logger *zap.Logger, host host.Host, serviceName string, notifee p2p_mdns.Notifee) *mdnsService {
-	if serviceName == "" {
+	// if serviceName == "" {
 		serviceName = p2p_mdns.ServiceName
-	}
+	// }
 
 	s := &mdnsService{
 		logger:      logger,
