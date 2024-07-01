@@ -69,21 +69,112 @@ function App() {
     elevation: 5,
   };
 
+  // const handleReceivedData = useCallback(data => {
+  //   // console.log('Received data:');
+  //   const ordersData = JSON.parse(data.message) as Array<string>;
+  //   // var prevOrders = orders;
+  //   for (const childData of ordersData) {
+  //     const orderData = JSON.parse(childData);
+  //     // const prevOrder = prevOrders[orderData.orderId];
+  //     // const newOrder = computeOrderState(
+  //     //   orderData.events,
+  //     //   prevOrder || undefined,
+  //     // );
+  //     // prevOrders = {...prevOrders, [orderData.orderId]: newOrder};
+  //     addGlobalEvents(orderData.orderId, orderData.events);
+  //   }
+  //   const newOrders = generateFullOrdersFromCache();
+  //   setOrders(prevOrders => {
+  //     if (!_.isEqual(newOrders, prevOrders)) {
+  //       const out = {};
+  //       for (const order of newOrders) {
+  //         out[order.id] = order;
+  //       }
+  //       return out;
+  //     }
+  //   });
+  // }, []);
+
   const handleReceivedData = useCallback(data => {
-    console.log('Received data:');
-    const ordersData = JSON.parse(data.message) as Array<string>;
-    // var prevOrders = orders;
-    for (const childData of ordersData) {
-      const orderData = JSON.parse(childData);
-      // const prevOrder = prevOrders[orderData.orderId];
-      // const newOrder = computeOrderState(
-      //   orderData.events,
-      //   prevOrder || undefined,
-      // );
-      // prevOrders = {...prevOrders, [orderData.orderId]: newOrder};
-      addGlobalEvents(orderData.orderId, orderData.events);
+    console.log('Received data');
+
+    let ordersData;
+    try {
+      ordersData = JSON.parse(data.message);
+      // console.log('Parsed ordersData:', ordersData);
+    } catch (error) {
+      console.error('Failed to parse data.message:', error);
+      return;
     }
-    const newOrders = generateFullOrdersFromCache();
+
+    if (!Array.isArray(ordersData)) {
+      console.error('Parsed data.message is not an array:', ordersData);
+      return;
+    }
+
+    const startProcessing = Date.now();
+    const newEvents = {};
+    for (const childData of ordersData) {
+      let orderData;
+      try {
+        orderData = JSON.parse(childData);
+      } catch (error) {
+        console.error('Failed to parse childData:', error);
+        continue;
+      }
+
+      if (!orderData.orderId || !Array.isArray(orderData.events)) {
+        console.error('Invalid orderData structure:', orderData);
+        continue;
+      }
+
+      if (!newEvents[orderData.orderId]) {
+        newEvents[orderData.orderId] = [];
+      }
+      newEvents[orderData.orderId].push(...orderData.events);
+    }
+    const endProcessing = Date.now();
+    console.log(
+      'Processing Orders Data took',
+      endProcessing - startProcessing,
+      'ms',
+    );
+
+    const startAddingEvents = Date.now();
+    // Add global events in bulk
+    Object.keys(newEvents).forEach(orderId => {
+      try {
+        addGlobalEvents(orderId, newEvents[orderId]);
+      } catch (error) {
+        console.error(
+          `Failed to add global events for orderId ${orderId}:`,
+          error,
+        );
+      }
+    });
+    const endAddingEvents = Date.now();
+    console.log(
+      'Adding Global Events took',
+      endAddingEvents - startAddingEvents,
+      'ms',
+    );
+
+    const startGeneratingOrders = Date.now();
+    let newOrders;
+    try {
+      newOrders = generateFullOrdersFromCache();
+    } catch (error) {
+      console.error('Failed to generate full orders from cache:', error);
+      return;
+    }
+    const endGeneratingOrders = Date.now();
+    console.log(
+      'Generating Full Orders took',
+      endGeneratingOrders - startGeneratingOrders,
+      'ms',
+    );
+
+    const startUpdatingState = Date.now();
     setOrders(prevOrders => {
       if (!_.isEqual(newOrders, prevOrders)) {
         const out = {};
@@ -92,7 +183,14 @@ function App() {
         }
         return out;
       }
+      return prevOrders;
     });
+    const endUpdatingState = Date.now();
+    console.log(
+      'Updating State took',
+      endUpdatingState - startUpdatingState,
+      'ms',
+    );
   }, []);
 
   useEffect(() => {
