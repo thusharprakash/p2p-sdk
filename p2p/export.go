@@ -45,7 +45,7 @@ func StartP2PChat(config *NodeConfig) string {
 	nickFlag := config.nickName
 	roomFlag := "test-chat-room-dabzee"
 
-	LogToNative("Starting P2P chat with nickname " + nickFlag)
+	//LogToNative("Starting P2P chat with nickname " + nickFlag)
 	// Initialize the storage
 	newStorage, err := NewStorage(config.storagePath)
 	storage = newStorage
@@ -77,14 +77,14 @@ func StartP2PChat(config *NodeConfig) string {
 	p2pInstance, err := NewP2P(ctx)
 	p2pNode = p2pInstance
 	if err != nil {
-		LogToNative("Error creating P2P instance--> "+err.Error())
+		//LogToNative("Error creating P2P instance--> "+err.Error())
 		panic(err)
 	}
 
 	p2pInstance.SetEventStorage(storage)
 
 	fmt.Printf("P2P instance created with ID %s\n", p2pInstance.Host.ID())
-	LogToNative("P2P instance created with ID " + p2pInstance.Host.ID().String())
+	//LogToNative("P2P instance created with ID " + p2pInstance.Host.ID().String())
 	// use the nickname from the cli flag, or a default if blank
 	nick := nickFlag
 	if len(nickFlag) == 0 {
@@ -99,9 +99,9 @@ func StartP2PChat(config *NodeConfig) string {
 
 	globalRoom = room
 	fmt.Printf("Joined room %s as %s\n", roomName, nick)
-	LogToNative("Joined room " + roomName + " as " + nick)
+	//LogToNative("Joined room " + roomName + " as " + nick)
 	if err != nil {
-		LogToNative("Error joining room--> "+err.Error());
+		//LogToNative("Error joining room--> "+err.Error());
 		panic(err)
 	}
 
@@ -174,10 +174,5 @@ func SubscribeToPeers(callback PeerCallback) {
 }
 
 func PublishMessage(message string) error {
-	err:= globalRoom.Publish(EventTypeMessage, message)
-	if(err!=nil){
-		fmt.Println("Error publishing message")
-		fmt.Println(err)
-	}
-	return err
+	return globalRoom.Publish(EventTypeMessage, message)
 }
