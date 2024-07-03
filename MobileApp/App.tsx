@@ -173,8 +173,6 @@ function App() {
         events: newOrderEvents,
       }),
     ).toString('hex');
-    console.log('Sending create order to native');
-    console.log(PeerModule);
     PeerModule.sendMessage(message);
   };
 
@@ -222,7 +220,7 @@ function App() {
         style={backgroundStyle}
         data={Object.values(orders)}
         renderItem={renderItem}
-        keyExtractor={item => item.id}
+        keyExtractor={(item, index) => `${item.id}-${index}`}
       />
       <View style={styles.buttonContainer}>
         {Array.from({length: 3}).map((_, index) => (
