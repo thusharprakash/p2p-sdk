@@ -37,6 +37,8 @@ func (room *EventRoom) Publish(eventType, data string) error {
 	}
 	msgBytes, err := json.Marshal(m)
 	if err != nil {
+		fmt.Println("Error marshalling event")
+		fmt.Println(err)
 		return err
 	}
 	return room.topic.Publish(room.ctx, msgBytes)
@@ -45,8 +47,6 @@ func (room *EventRoom) Publish(eventType, data string) error {
 
 func (room *EventRoom) SendEventsToPeer(peerID peer.ID) error {
 	events, err := room.Storage.GetEvents()
-	fmt.Printf("Sending %d events\n", len(events))
-	fmt.Println("Events being sent", events)
 	if err != nil {
 		return fmt.Errorf("failed to get events: %w", err)
 	}
@@ -74,20 +74,19 @@ func topicName(roomName string) string {
 func (room *EventRoom) readLoop(em *EventManager) {
 	for {
 		msg, err := room.sub.Next(room.ctx)
+		fmt.Println("Received event")
 		if err != nil {
+			fmt.Println(err)
 			close(room.Messages)
 			return
 		}
-		// if msg.ReceivedFrom == room.self.ID() {
-		//     continue
-		// }
 		evt := new(EventMessage)
 		err = json.Unmarshal(msg.Data, evt)
 		if err != nil {
 			continue
 		}
 		room.VectorClock.Update(evt.VectorClock)
-		room.Messages <- evt
+		//room.Messages <- evt
 		em.DispatchWithOrdering(*evt)
 
 		// Save event to storage
@@ -96,5 +95,6 @@ func (room *EventRoom) readLoop(em *EventManager) {
 				fmt.Printf("Error saving event: %s\n", err)
 			}
 		}
+		
 	}
 }

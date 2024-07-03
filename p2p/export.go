@@ -132,7 +132,7 @@ func StartP2PChat(config *NodeConfig) string {
 func StartSubscription(callback PeerMessageCallback) {
 	// Listen for incoming messages
 	p2pNode.EventManager.RegisterEventHandler("message", func(event EventMessage) {
-		fmt.Printf("Received event from %s: %s\n", event.SenderNick, event.Data)
+		fmt.Printf("Received event from %s: %s\n", event.SenderNick)
 		if err := storage.AddEventIfNotDuplicate(event); err != nil {
 			fmt.Printf("Error adding event to storage: %v\n", err)
 		}
@@ -165,11 +165,19 @@ func SubscribeToPeers(callback PeerCallback) {
 		for {
 			time.Sleep(5 * time.Second)
 			peers := p2pNode.Host.Peerstore().Peers()
+			fmt.Println(p2pNode.Rooms)
+			fmt.Println(p2pNode.PubSub.ListPeers("test-chat-room-dabzee"))
+			fmt.Println(p2pNode.Rooms["test-chat-room-dabzee"])
 			callback.OnMessage(peers.String())
 		}
 	}()
 }
 
 func PublishMessage(message string) error {
-	return globalRoom.Publish(EventTypeMessage, message)
+	err:= globalRoom.Publish(EventTypeMessage, message)
+	if(err!=nil){
+		fmt.Println("Error publishing message")
+		fmt.Println(err)
+	}
+	return err
 }

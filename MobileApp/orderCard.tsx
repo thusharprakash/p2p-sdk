@@ -1,16 +1,13 @@
-import React, {useState} from 'react';
+import React from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
   useColorScheme,
-  LayoutAnimation,
   UIManager,
   Platform,
 } from 'react-native';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import {getLastEvent} from './globalcache';
 
 // Enable LayoutAnimation on Android
 if (Platform.OS === 'android') {
@@ -19,22 +16,19 @@ if (Platform.OS === 'android') {
 }
 
 const OrderCard = ({
-  order,
+  orderId,
+  totalPrice,
+  status,
   onUpdateOrder,
   number,
 }: {
-  order: any;
+  orderId: string;
+  totalPrice: number;
+  status: string;
   onUpdateOrder: any;
   number: number;
 }) => {
-  const [collapsed, setCollapsed] = useState(true);
   const isDarkMode = useColorScheme() === 'dark';
-  const orderId = order.id;
-
-  const toggleCollapse = () => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setCollapsed(!collapsed);
-  };
 
   const cardStyle = {
     backgroundColor: isDarkMode ? '#444' : '#fff',
@@ -51,35 +45,12 @@ const OrderCard = ({
         <Text style={[styles.title, textStyle]}>
           {number + 1}.Order ID: {orderId}
         </Text>
-        <TouchableOpacity onPress={toggleCollapse}>
-          <Icon
-            name={collapsed ? 'chevron-down' : 'chevron-up'}
-            size={24}
-            color={textStyle.color}
-          />
-        </TouchableOpacity>
       </View>
-      <Text style={[styles.text, textStyle]}>
-        Order Total: ${order.totalPrice}
-      </Text>
-      <Text style={[styles.text, textStyle]}>Status: {order.status}</Text>
-      {!collapsed && (
-        <View style={styles.itemsContainer}>
-          {order.orderItems?.map((item: any, index: any) => (
-            <View key={index} style={[styles.itemCard, cardStyle]}>
-              <Text style={[styles.itemText, textStyle]}>
-                {item.product?.name || 'Unknown Product'}
-              </Text>
-              <Text style={[styles.itemText, textStyle]}>
-                Quantity: {item.quantity}, Price: ${item.unitPrice}
-              </Text>
-            </View>
-          ))}
-        </View>
-      )}
+      <Text style={[styles.text, textStyle]}>Order Total: ${totalPrice}</Text>
+      <Text style={[styles.text, textStyle]}>Status: {status}</Text>
       <TouchableOpacity
         style={styles.updateButton}
-        onPress={() => onUpdateOrder(orderId, getLastEvent())}>
+        onPress={() => onUpdateOrder(orderId)}>
         <Text style={styles.buttonText}>Update Order</Text>
       </TouchableOpacity>
     </View>
