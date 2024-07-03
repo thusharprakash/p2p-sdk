@@ -11,6 +11,7 @@ import {
   NativeEventEmitter,
   useColorScheme,
   TextInput,
+  FlatList,
 } from 'react-native';
 
 import {Buffer} from 'buffer';
@@ -22,9 +23,9 @@ const {PeerModule} = NativeModules;
 
 import {generateOrder, updateOrder} from './utils';
 import OrderCard from './orderCard';
-import _ from 'lodash';
 import {
   addGlobalEvents,
+  areObjectsEqual,
   generateFullOrdersFromCache,
   generateOrdersFromCache,
   getLastEvent,
@@ -69,129 +70,76 @@ function App() {
     elevation: 5,
   };
 
-  // const handleReceivedData = useCallback(data => {
-  //   // console.log('Received data:');
-  //   const ordersData = JSON.parse(data.message) as Array<string>;
-  //   // var prevOrders = orders;
-  //   for (const childData of ordersData) {
-  //     const orderData = JSON.parse(childData);
-  //     // const prevOrder = prevOrders[orderData.orderId];
-  //     // const newOrder = computeOrderState(
-  //     //   orderData.events,
-  //     //   prevOrder || undefined,
-  //     // );
-  //     // prevOrders = {...prevOrders, [orderData.orderId]: newOrder};
-  //     addGlobalEvents(orderData.orderId, orderData.events);
-  //   }
-  //   const newOrders = generateFullOrdersFromCache();
-  //   setOrders(prevOrders => {
-  //     if (!_.isEqual(newOrders, prevOrders)) {
-  //       const out = {};
-  //       for (const order of newOrders) {
-  //         out[order.id] = order;
-  //       }
-  //       return out;
-  //     }
-  //   });
-  // }, []);
-
-  const handleReceivedData = useCallback(data => {
-    console.log('Received data');
-
-    let ordersData;
-    try {
-      ordersData = JSON.parse(data.message);
-      // console.log('Parsed ordersData:', ordersData);
-    } catch (error) {
-      console.error('Failed to parse data.message:', error);
-      return;
-    }
-
-    if (!Array.isArray(ordersData)) {
-      console.error('Parsed data.message is not an array:', ordersData);
-      return;
-    }
-
-    const startProcessing = Date.now();
-    const newEvents = {};
-    for (const childData of ordersData) {
-      let orderData;
+  const handleReceivedData = useCallback(
+    async data => {
+      let ordersData;
       try {
-        orderData = JSON.parse(childData);
+        ordersData = JSON.parse(data.message);
+        // console.log('Parsed ordersData:', ordersData);
       } catch (error) {
-        console.error('Failed to parse childData:', error);
-        continue;
+        console.error('Failed to parse data.message:', error);
+        return;
       }
 
-      if (!orderData.orderId || !Array.isArray(orderData.events)) {
-        console.error('Invalid orderData structure:', orderData);
-        continue;
+      if (!Array.isArray(ordersData)) {
+        console.error('Parsed data.message is not an array:', ordersData);
+        return;
       }
-
-      if (!newEvents[orderData.orderId]) {
-        newEvents[orderData.orderId] = [];
-      }
-      newEvents[orderData.orderId].push(...orderData.events);
-    }
-    const endProcessing = Date.now();
-    console.log(
-      'Processing Orders Data took',
-      endProcessing - startProcessing,
-      'ms',
-    );
-
-    const startAddingEvents = Date.now();
-    // Add global events in bulk
-    Object.keys(newEvents).forEach(orderId => {
-      try {
-        addGlobalEvents(orderId, newEvents[orderId]);
-      } catch (error) {
-        console.error(
-          `Failed to add global events for orderId ${orderId}:`,
-          error,
-        );
-      }
-    });
-    const endAddingEvents = Date.now();
-    console.log(
-      'Adding Global Events took',
-      endAddingEvents - startAddingEvents,
-      'ms',
-    );
-
-    const startGeneratingOrders = Date.now();
-    let newOrders;
-    try {
-      newOrders = generateFullOrdersFromCache();
-    } catch (error) {
-      console.error('Failed to generate full orders from cache:', error);
-      return;
-    }
-    const endGeneratingOrders = Date.now();
-    console.log(
-      'Generating Full Orders took',
-      endGeneratingOrders - startGeneratingOrders,
-      'ms',
-    );
-
-    const startUpdatingState = Date.now();
-    setOrders(prevOrders => {
-      if (!_.isEqual(newOrders, prevOrders)) {
-        const out = {};
-        for (const order of newOrders) {
-          out[order.id] = order;
+      const newEvents = {};
+      for (const childData of ordersData) {
+        let orderData;
+        try {
+          orderData = JSON.parse(childData);
+        } catch (error) {
+          console.error('Failed to parse childData:', error);
+          return;
         }
-        return out;
+
+        if (!orderData.orderId || !Array.isArray(orderData.events)) {
+          console.error('Invalid orderData structure:', orderData);
+          return;
+        }
+
+        if (!newEvents[orderData.orderId]) {
+          newEvents[orderData.orderId] = [];
+        }
+        newEvents[orderData.orderId].push(...orderData.events);
       }
-      return prevOrders;
-    });
-    const endUpdatingState = Date.now();
-    console.log(
-      'Updating State took',
-      endUpdatingState - startUpdatingState,
-      'ms',
-    );
-  }, []);
+
+      // Add global events in bulk
+      Object.keys(newEvents).forEach(orderId => {
+        try {
+          addGlobalEvents(orderId, newEvents[orderId]);
+        } catch (error) {
+          console.error(
+            `Failed to add global events for orderId ${orderId}:`,
+            error,
+          );
+        }
+      });
+
+      let newOrders;
+      try {
+        newOrders = generateFullOrdersFromCache(orders);
+      } catch (error) {
+        console.error('Failed to generate full orders from cache:', error);
+        return;
+      }
+      setOrders(prevOrders => {
+        if (!areObjectsEqual(newOrders, prevOrders)) {
+          console.log('Setting new state');
+          const out = {};
+          for (const order of newOrders) {
+            out[order.id] = order;
+          }
+          return out;
+        }
+        console.log('State not changed');
+        return prevOrders;
+      });
+    },
+    [orders],
+  );
 
   useEffect(() => {
     const emitter = new NativeEventEmitter(PeerModule);
@@ -234,7 +182,7 @@ function App() {
     }
   };
 
-  const updateOrderEvent = orderId => {
+  const updateOrderEvent = useCallback((orderId: string) => {
     const updatedEvents = updateOrder(orderId, getLastEvent(orderId));
     const message = Buffer.from(
       JSON.stringify({
@@ -244,7 +192,18 @@ function App() {
     ).toString('hex');
     console.log('Sending message to native');
     PeerModule.sendMessage(message);
-  };
+  }, []);
+
+  const renderItem = ({item, index}) => (
+    <OrderCard
+      key={item.id}
+      onUpdateOrder={updateOrderEvent}
+      number={index}
+      orderId={item.id}
+      totalPrice={item.totalPrice}
+      status={item.status}
+    />
+  );
 
   return (
     <SafeAreaView style={[styles.container, backgroundStyle]}>
@@ -252,18 +211,13 @@ function App() {
         barStyle={isDarkMode ? 'light-content' : 'dark-content'}
         backgroundColor={backgroundStyle.backgroundColor}
       />
-      <ScrollView
+      <FlatList
         contentInsetAdjustmentBehavior="automatic"
-        style={backgroundStyle}>
-        {Object.entries(orders).map(([id, order], index) => (
-          <OrderCard
-            key={id}
-            order={order}
-            onUpdateOrder={() => updateOrderEvent(id)}
-            number={index}
-          />
-        ))}
-      </ScrollView>
+        style={backgroundStyle}
+        data={Object.values(orders)}
+        renderItem={renderItem}
+        keyExtractor={item => item.id}
+      />
       <View style={styles.buttonContainer}>
         {Array.from({length: 3}).map((_, index) => (
           <TouchableOpacity
@@ -279,12 +233,6 @@ function App() {
           onPress={() => setModalVisible(true)}>
           <Icon name="account-multiple" size={20} color="#fff" />
           <Text style={styles.iconText}>Show Peers</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.iconButton}
-          onPress={() => setCacheModalVisible(true)}>
-          <Icon name="account-multiple" size={20} color="#fff" />
-          <Text style={styles.iconText}>Show Cache</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -334,29 +282,6 @@ function App() {
           </View>
         </View>
       </Modal>
-
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={cacheModalVisible}
-        onRequestClose={() => setModalVisible(!cacheModalVisible)}>
-        <View style={styles.centeredView}>
-          <View
-            style={[
-              styles.modalView,
-              // eslint-disable-next-line react-native/no-inline-styles
-              {backgroundColor: isDarkMode ? '#555' : '#fff'},
-            ]}>
-            <Text selectable>{JSON.stringify(generateOrdersFromCache())}</Text>
-            <TouchableOpacity
-              style={styles.buttonClose}
-              onPress={() => setCacheModalVisible(!cacheModalVisible)}>
-              <Text style={styles.textStyle}>Hide Modal</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
       <Modal
         animationType="slide"
         transparent={true}

@@ -34,18 +34,19 @@ type EventMessage struct {
 }
 
 func NewP2P(ctx context.Context) (*PeerToPeer, error) {
-	fmt.Println("Initializing P2P")
 	LogToNative("Initializing P2P")
+
+
 	h, err := libp2p.New(
 		libp2p.Security(noise.ID, noise.New),
 		libp2p.ListenAddrStrings("/ip4/0.0.0.0/tcp/0"))
 	if err != nil {
 		return nil, err
 	}
-
-	fmt.Println("Initializing PubSub")
 	LogToNative("Initializing PubSub")
-	ps, err := pubsub.NewGossipSub(ctx, h)
+
+	tracer := &CustomEventTracer{}
+	ps, err := pubsub.NewGossipSub(ctx, h,pubsub.WithEventTracer(tracer))
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +112,6 @@ func (p2p *PeerToPeer) JoinRoom(ctx context.Context, roomName, nick string) (*Ev
 
 	// send an inital message to the room with all the events
 	go room.SendEventsToPeer(p2p.Host.ID())
-
 	go room.readLoop(p2p.EventManager)
 	return room, nil
 }
