@@ -1,4 +1,4 @@
-import React, {useCallback, useEffect, useState} from 'react';
+import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {
   SafeAreaView,
   ScrollView,
@@ -27,7 +27,6 @@ import {
   addGlobalEvents,
   areObjectsEqual,
   generateFullOrdersFromCache,
-  generateOrdersFromCache,
   getLastEvent,
 } from './globalcache';
 
@@ -36,10 +35,9 @@ function App() {
   isDarkMode = useColorScheme() === 'dark';
   const [orders, setOrders] = useState({});
   const [modalVisible, setModalVisible] = useState(false);
-  const [cacheModalVisible, setCacheModalVisible] = useState(false);
-  const [showLogModale, setShowLogModal] = useState(false); // [showLogModal, setShowLogModal
   const [peers, setPeers] = useState([]);
   const [peerId, setPeerId] = useState('');
+  const emitterRef = useRef(new NativeEventEmitter(PeerModule));
 
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -142,21 +140,28 @@ function App() {
   );
 
   useEffect(() => {
-    const emitter = new NativeEventEmitter(PeerModule);
-    const orderListener = emitter.addListener('P2P', handleReceivedData);
-    const peersListener = emitter.addListener('PEERS', data => {
+    const peersListener = emitterRef.current.addListener('PEERS', data => {
       setPeers(data.message.split(','));
     });
-    const peerIdListener = emitter.addListener('PEER_ID', data => {
+    const peerIdListener = emitterRef.current.addListener('PEER_ID', data => {
       setPeerId(data.message);
     });
 
     PeerModule.start();
+    return () => {
+      peersListener.remove();
+      peerIdListener.remove();
+    };
+  }, []);
+
+  useEffect(() => {
+    const orderListener = emitterRef.current.addListener(
+      'P2P',
+      handleReceivedData,
+    );
 
     return () => {
       orderListener.remove();
-      peersListener.remove();
-      peerIdListener.remove();
     };
   }, [handleReceivedData]);
 
@@ -169,18 +174,19 @@ function App() {
       }),
     ).toString('hex');
     console.log('Sending create order to native');
+    console.log(PeerModule);
     PeerModule.sendMessage(message);
   };
 
-  const getLogs = () => {
-    try {
-      const logs = PeerModule.getLogs();
-      const logsArray = JSON.parse(logs) as Array<string>;
-      return logsArray.join('\n');
-    } catch (e) {
-      return 'error';
-    }
-  };
+  // const getLogs = () => {
+  //   try {
+  //     const logs = PeerModule.getLogs();
+  //     const logsArray = JSON.parse(logs) as Array<string>;
+  //     return logsArray.join('\n');
+  //   } catch (e) {
+  //     return 'error';
+  //   }
+  // };
 
   const updateOrderEvent = useCallback((orderId: string) => {
     const updatedEvents = updateOrder(orderId, getLastEvent(orderId));
@@ -234,13 +240,6 @@ function App() {
           <Icon name="account-multiple" size={20} color="#fff" />
           <Text style={styles.iconText}>Show Peers</Text>
         </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.iconButton}
-          onPress={() => setShowLogModal(true)}>
-          <Icon name="account-multiple" size={20} color="#fff" />
-          <Text style={styles.iconText}>Show Logs</Text>
-        </TouchableOpacity>
       </View>
       <Modal
         animationType="slide"
@@ -282,7 +281,7 @@ function App() {
           </View>
         </View>
       </Modal>
-      <Modal
+      {/* <Modal
         animationType="slide"
         transparent={true}
         visible={showLogModale}
@@ -304,7 +303,7 @@ function App() {
             </ScrollView>
           </View>
         </View>
-      </Modal>
+      </Modal> */}
     </SafeAreaView>
   );
 }
