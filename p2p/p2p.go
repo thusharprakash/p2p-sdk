@@ -7,6 +7,7 @@ import (
 	"github.com/libp2p/go-libp2p"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"github.com/libp2p/go-libp2p/core/host"
+	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/p2p/security/noise"
 )
 
@@ -43,7 +44,6 @@ func NewP2P(ctx context.Context) (*PeerToPeer, error) {
 	if err != nil {
 		return nil, err
 	}
-	LogToNative("Initializing PubSub")
 
 	tracer := &CustomEventTracer{}
 	ps, err := pubsub.NewGossipSub(ctx, h,pubsub.WithEventTracer(tracer))
@@ -52,7 +52,6 @@ func NewP2P(ctx context.Context) (*PeerToPeer, error) {
 	}
 
 	fmt.Println("Setting up discovery")
-	LogToNative("Setting up discovery")
 	if err := SetupDiscovery(h); err != nil {
 		return nil, err
 	}
@@ -82,6 +81,10 @@ func (p2p *PeerToPeer) SetEventStorage(storage *Storage) {
 	for _, event := range events {
 		p2p.EventManager.DispatchWithOrdering(event)
 	}
+}
+
+func (p2p *PeerToPeer) listPeers() []peer.ID{
+	return p2p.PubSub.ListPeers(topicName("test-chat-room-dabzee"))
 }
 
 func (p2p *PeerToPeer) JoinRoom(ctx context.Context, roomName, nick string) (*EventRoom, error) {
